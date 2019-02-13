@@ -534,6 +534,39 @@ else
   AC_MSG_RESULT(yes)
 fi
 
+dnl Check for Duktape feature
+AC_MSG_CHECKING(--enable-duktapeinterp argument)
+AC_ARG_ENABLE(duktapeinterp,
+	[  --enable-duktapeinterp[=OPTS]      Include Duktape JavaScript interpreter.  [default=no] [OPTS=no/yes]], ,
+	[enable_duktapeinterp="no"])
+AC_MSG_RESULT($enable_duktapeinterp)
+if test "$enable_duktapeinterp" = "yes"; then
+  dnl -- find the Duktape sources
+  AC_MSG_CHECKING(--with-duktape-prefix argument)
+  AC_ARG_WITH(duktape_prefix,
+	[  --with-duktape-prefix=PFX   Prefix where Duktape sources are
+located.],
+	with_duktape_prefix="$withval"; AC_MSG_RESULT($with_duktape_prefix),
+	with_duktape_prefix="";AC_MSG_RESULT(no))
+
+  if test "X$with_duktape_prefix" != "X"; then
+    vi_cv_path_duktape_pfx="$with_duktape_prefix"
+    duktape_ok="yes"
+  fi
+  if test "x$duktape_ok" = "xyes"; then
+    DUKTAPE_CFLAGS="-I${vi_cv_path_duktape_pfx}"
+    DUKTAPE_DIST_SRC="${vi_cv_path_duktape_pfx}/duktape.c"
+    DUKTAPE_SRC="if_duktape.c ${DUKTAPE_DIST_SRC}"
+    DUKTAPE_OBJ="objects/if_duktape.o objects/duktape.o"
+    DUKTAPE_PRO="if_duktape.pro"
+    AC_DEFINE(FEAT_DUKTAPE)
+  fi
+  AC_SUBST(DUKTAPE_SRC)
+  AC_SUBST(DUKTAPE_DIST_SRC)
+  AC_SUBST(DUKTAPE_OBJ)
+  AC_SUBST(DUKTAPE_PRO)
+  AC_SUBST(DUKTAPE_CFLAGS)
+fi
 dnl Check for Lua feature.
 AC_MSG_CHECKING(--enable-luainterp argument)
 AC_ARG_ENABLE(luainterp,

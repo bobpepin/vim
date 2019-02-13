@@ -230,6 +230,10 @@ void qsort(void *base, size_t elm_count, size_t elm_size, int (*cmp)(const void 
 # include "version.pro"
 # include "window.pro"
 
+# ifdef FEAT_DUKTAPE
+#  include "if_duktape.pro"
+# endif
+
 # ifdef FEAT_LUA
 #  include "if_lua.pro"
 # endif

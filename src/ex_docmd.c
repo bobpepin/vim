@@ -225,6 +225,9 @@ static void	ex_popup(exarg_T *eap);
 # define ex_rundo		ex_ni
 # define ex_wundo		ex_ni
 #endif
+#ifndef FEAT_DUKTAPE
+# define ex_duktape		ex_script_ni
+#endif
 #ifndef FEAT_LUA
 # define ex_lua			ex_script_ni
 # define ex_luado		ex_ni
@@ -2406,6 +2409,7 @@ do_one_cmd(
 	    case CMD_dlist:
 	    case CMD_dsearch:
 	    case CMD_dsplit:
+	    case CMD_duktape:
 	    case CMD_echo:
 	    case CMD_echoerr:
 	    case CMD_echomsg:
