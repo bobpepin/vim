@@ -398,6 +398,9 @@ CClink = $(CC)
 # the failing interfaces.
 #CONF_OPT_FAIL = --enable-fail-if-missing
 
+#CONF_OPT_DUKTAPE = --enable-duktapeinterp
+#CONF_OPT_DUKTAPE_PREFIX = --with-duktape-prefix=$(HOME)/Documents/duktape-2.3.0/src
+
 # LUA
 # Uncomment one of these when you want to include the Lua interface.
 # First one is for static linking, second one for dynamic loading.
@@ -1644,6 +1647,7 @@ SRC =	$(BASIC_SRC) \
 	$(TERM_SRC) \
 	$(XDIFF_SRC) \
 	$(HANGULIN_SRC) \
+	$(DUKTAPE_SRC) \
 	$(LUA_SRC) \
 	$(MZSCHEME_SRC) \
 	$(PERL_SRC) \
@@ -1651,8 +1655,8 @@ SRC =	$(BASIC_SRC) \
 	$(TCL_SRC) \
 	$(RUBY_SRC)
 
-EXTRA_SRC = hangulin.c if_lua.c if_mzsch.c auto/if_perl.c if_perlsfio.c \
-	    if_python.c if_python3.c if_tcl.c if_ruby.c \
+EXTRA_SRC = hangulin.c if_duktape.c if_lua.c if_mzsch.c auto/if_perl.c \
+	    if_perlsfio.c if_python.c if_python3.c if_tcl.c if_ruby.c \
 	    gui_beval.c netbeans.c channel.c \
 	    $(GRESOURCE_SRC)
 
@@ -1750,6 +1754,7 @@ OBJ_COMMON = \
 	objects/window.o \
 	$(GUI_OBJ) \
 	$(TERM_OBJ) \
+	$(DUKTAPE_OBJ) \
 	$(LUA_OBJ) \
 	$(MZSCHEME_OBJ) \
 	$(PERL_OBJ) \
@@ -1937,6 +1942,7 @@ config auto/config.mk: auto/configure config.mk.in config.h.in
 		$(CONF_ARGS4) $(CONF_ARGS5) $(CONF_ARGS6) \
 		$(CONF_OPT_MZSCHEME) $(CONF_OPT_PLTHOME) \
 		$(CONF_OPT_LUA) $(CONF_OPT_LUA_PREFIX) \
+		$(CONF_OPT_DUKTAPE) $(CONF_OPT_DUKTAPE_PREFIX) \
 		$(CONF_OPT_SYSMOUSE); \
 	fi
 
@@ -3070,6 +3076,12 @@ objects/if_cscope.o: if_cscope.c
 
 objects/if_xcmdsrv.o: if_xcmdsrv.c
 	$(CCC) -o $@ if_xcmdsrv.c
+
+objects/if_duktape.o: if_duktape.c
+	$(CCC_NF) $(DUKTAPE_CFLAGS) $(ALL_CFLAGS) -o $@ if_duktape.c
+
+objects/duktape.o: $(DUKTAPE_DIST_SRC)
+	$(CCC_NF) $(DUKTAPE_CFLAGS) $(ALL_CFLAGS) -o $@ $(DUKTAPE_DIST_SRC)
 
 objects/if_lua.o: if_lua.c
 	$(CCC_NF) $(LUA_CFLAGS) $(ALL_CFLAGS) -o $@ if_lua.c
