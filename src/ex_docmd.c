@@ -121,6 +121,7 @@ static void	get_flags(exarg_T *eap);
 	|| !defined(FEAT_PYTHON) || !defined(FEAT_PYTHON3) \
 	|| !defined(FEAT_TCL) \
 	|| !defined(FEAT_RUBY) \
+	|| !defined(FEAT_DUKTAPE) \
 	|| !defined(FEAT_LUA) \
 	|| !defined(FEAT_MZSCHEME)
 # define HAVE_EX_SCRIPT_NI
@@ -2409,6 +2410,7 @@ do_one_cmd(
 	    case CMD_dlist:
 	    case CMD_dsearch:
 	    case CMD_dsplit:
+	    case CMD_dukfile:
 	    case CMD_duktape:
 	    case CMD_echo:
 	    case CMD_echoerr:
