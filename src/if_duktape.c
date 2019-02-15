@@ -19,6 +19,101 @@
 #include "vim.h"
 
 #include "duktape.h"
+
+duk_ret_t vduk_msg(duk_context *ctx) {
+    msg((char*)duk_to_string(ctx, -1));
+    duk_pop(ctx);
+    return 0;
+}
+
+duk_ret_t vduk_do_cmdline_cmd(duk_context *ctx) {
+    int r = do_cmdline_cmd((char_u*)duk_to_string(ctx, -1));
+    duk_pop(ctx);
+    duk_push_boolean(ctx, r == OK);
+    return 1;
+}
+
+typval_T vduk_get_typval(duk_context *ctx, duk_idx_t idx) {
+    typval_T tv;
+    tv.v_lock = VAR_FIXED;
+    if(duk_is_string(ctx, idx)) {
+	tv.v_type = VAR_STRING;
+	tv.vval.v_string = (char_u*)duk_get_string(ctx, idx);
+    } else if(duk_is_number(ctx, idx)) {
+	tv.v_type = VAR_NUMBER;
+	tv.vval.v_number = duk_get_int(ctx, idx);
+    } else {
+	tv.v_type = VAR_UNKNOWN;
+    }
+    return tv;
+}
+
+duk_ret_t vduk_call_internal_func(duk_context *ctx) {
+    char_u *name = (char_u*)duk_to_string(ctx, -2);
+    int argcount = duk_get_length(ctx, -1);
+    typval_T *argvars = (typval_T*)alloc(argcount * sizeof(typval_T));
+    for(duk_uarridx_t i=0; i < argcount; i++) {
+	duk_get_prop_index(ctx, -1, i);
+	argvars[i] = vduk_get_typval(ctx, -1);
+	duk_pop(ctx);
+    }
+    typval_T rettv;
+    rettv.v_type = VAR_NUMBER;
+    call_internal_func(name, argcount, argvars, &rettv);
+    duk_pop_2(ctx);
+    duk_ret_t retcount = 0;
+    switch(rettv.v_type) {
+    case VAR_STRING:
+	duk_push_string(ctx, (const char*)rettv.vval.v_string);
+	retcount = 1;
+	break;
+    case VAR_NUMBER:
+	duk_push_int(ctx, rettv.vval.v_number);
+	retcount = 1;
+	break;
+    default:
+	break;
+    }
+    clear_tv(&rettv);
+    return retcount;
+}
+
+duk_ret_t vduk_read_blob(duk_context *ctx) {
+    stat_T st;
+    const char *fname = (const char*)duk_get_string(ctx, -1);
+    if(mch_stat(fname, &st) != 0) {
+	return duk_generic_error(ctx, "%s: stat: %s", fname, strerror(errno));
+    }
+    duk_size_t size = st.st_size;
+    FILE *fp = mch_fopen(fname, READBIN);
+    if(!fp) {
+	return duk_generic_error(ctx, "%s: fopen: %s", fname, strerror(errno));
+    }
+    duk_pop(ctx);
+    void *buf = duk_push_fixed_buffer(ctx, size);
+    fread(buf, 1, size, fp);
+    fclose(fp);
+    return 1;
+}
+
+duk_context *vduk_get_context() {
+    static duk_context *ctx = NULL;
+    if(ctx) {
+	return ctx;
+    }
+    ctx = duk_create_heap_default();
+    duk_push_global_object(ctx);
+    duk_push_c_lightfunc(ctx, vduk_msg, 1, 1, 0);
+    duk_put_prop_string(ctx, -2, "msg");
+    duk_push_c_lightfunc(ctx, vduk_do_cmdline_cmd, 1, 1, 0);
+    duk_put_prop_string(ctx, -2, "do_cmdline_cmd");
+    duk_push_c_lightfunc(ctx, vduk_call_internal_func, 2, 2, 0);
+    duk_put_prop_string(ctx, -2, "call_internal_func");
+    duk_push_c_lightfunc(ctx, vduk_read_blob, 1, 1, 0);
+    duk_put_prop_string(ctx, -2, "read_blob");
+    duk_pop(ctx);
+    return ctx;
+}
 /*
  * ":duktape"
  */
@@ -28,26 +123,51 @@ ex_duktape(exarg_T *eap)
     char_u *script;
 
     script = script_get(eap, eap->arg);
-    duk_context *ctx = duk_create_heap_default();
-    if (ctx) {
-        char *evalstr = script == NULL ? (char *) eap->arg : (char *) script;
-        duk_eval_string(ctx, evalstr);
-	printf("return value is: %lf\n", (double) duk_get_number(ctx, -1));
-	duk_pop(ctx);
-        duk_destroy_heap(ctx);
+    duk_context *ctx = vduk_get_context();
+    if(!ctx) {
+	semsg("Failed to get duktape context");
+	return;
     }
-#if 0
-    if (!eap->skip)
-    {
-	DoPyCommand(script == NULL ? (char *) eap->arg : (char *) script,
-		(rangeinitializer) init_range_cmd,
-		(runner) run_cmd,
-		(void *) eap);
+    char *evalstr = script == NULL ? (char *) eap->arg : (char *) script;
+    if (duk_peval_string(ctx, evalstr) != 0) {
+	semsg("duktape: %s", duk_safe_to_string(ctx, -1));
+    } else {
+	smsg("duktape: %s", duk_safe_to_string(ctx, -1));
     }
-#endif
+    duk_pop(ctx);
     vim_free(script);
 }
-
+/*
+ * ":dukfile"
+ */
+void
+ex_dukfile(exarg_T *eap)
+{
+    duk_context *ctx = vduk_get_context();
+    if(!ctx) {
+	semsg("Failed to get duktape context");
+	return;
+    }
+    const char *fname = (const char *) eap->arg;
+    duk_push_string(ctx, fname);
+    vduk_read_blob(ctx);
+    duk_peval_string(ctx, "new TextDecoder()");
+    duk_get_prop_string(ctx, -1, "decode");
+    duk_swap_top(ctx, -3); /* s: [func] [this] [arg] */
+    duk_pcall_method(ctx, 1);
+    duk_push_string(ctx, fname);
+    if(duk_pcompile(ctx, 0) != 0) {
+	semsg("duktape: %s: %s", fname, duk_safe_to_string(ctx, -1));
+	duk_pop(ctx);
+	return;
+    }
+    if (duk_pcall(ctx, 0) != 0) {
+	semsg("duktape: %s: %s", fname, duk_safe_to_string(ctx, -1));
+    } else {
+	smsg("duktape: %s: %s", fname, duk_safe_to_string(ctx, -1));
+    }
+    duk_pop(ctx);
+}
 #if 0
 /******************************************************
  * Internal function prototypes.
