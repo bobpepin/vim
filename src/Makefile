@@ -398,8 +398,8 @@ CClink = $(CC)
 # the failing interfaces.
 #CONF_OPT_FAIL = --enable-fail-if-missing
 
-#CONF_OPT_DUKTAPE = --enable-duktapeinterp
-#CONF_OPT_DUKTAPE_PREFIX = --with-duktape-prefix=$(HOME)/Documents/duktape-2.3.0/src
+CONF_OPT_DUKTAPE = --enable-duktapeinterp
+CONF_OPT_DUKTAPE_PREFIX = --with-duktape-prefix=$(HOME)/Documents/duktape-2.3.0/src
 
 # LUA
 # Uncomment one of these when you want to include the Lua interface.
@@ -536,7 +536,7 @@ CClink = $(CC)
 # The default is "huge" for most systems.
 #CONF_OPT_FEAT = --with-features=tiny
 #CONF_OPT_FEAT = --with-features=small
-#CONF_OPT_FEAT = --with-features=normal
+CONF_OPT_FEAT = --with-features=normal
 #CONF_OPT_FEAT = --with-features=big
 #CONF_OPT_FEAT = --with-features=huge
 
@@ -584,14 +584,14 @@ CClink = $(CC)
 # again.
 #CC = cc
 #CC = gcc
-#CC = clang
+CC = clang
 
 # COMPILER FLAGS - change as you please. Either before running {{{1
 # configure or afterwards. For examples see below.
 # When using -g with some older versions of Linux you might get a
 # statically linked executable.
 # When not defined, configure will try to use -O2 -g for gcc and -O for cc.
-#CFLAGS = -g
+CFLAGS = -g
 #CFLAGS = -O
 
 # Optimization limits - depends on the compiler.  Automatic check in configure
@@ -3082,6 +3082,9 @@ objects/if_duktape.o: if_duktape.c
 
 objects/duktape.o: $(DUKTAPE_DIST_SRC)
 	$(CCC_NF) $(DUKTAPE_CFLAGS) $(ALL_CFLAGS) -o $@ $(DUKTAPE_DIST_SRC)
+
+objects/duk_module_node.o: $(DUKTAPE_MODULE_NODE_SRC)
+	$(CCC_NF) $(DUKTAPE_CFLAGS) $(ALL_CFLAGS) -o $@ $(DUKTAPE_MODULE_NODE_SRC)
 
 objects/if_lua.o: if_lua.c
 	$(CCC_NF) $(LUA_CFLAGS) $(ALL_CFLAGS) -o $@ if_lua.c

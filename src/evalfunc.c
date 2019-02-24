@@ -134,6 +134,9 @@ static void f_deletebufline(typval_T *argvars, typval_T *rettv);
 static void f_did_filetype(typval_T *argvars, typval_T *rettv);
 static void f_diff_filler(typval_T *argvars, typval_T *rettv);
 static void f_diff_hlID(typval_T *argvars, typval_T *rettv);
+#ifdef FEAT_DUKTAPE
+static void f_dukcall(typval_T *argvars, typval_T *rettv);
+#endif
 static void f_empty(typval_T *argvars, typval_T *rettv);
 static void f_escape(typval_T *argvars, typval_T *rettv);
 static void f_eval(typval_T *argvars, typval_T *rettv);
@@ -621,6 +624,9 @@ static struct fst
     {"did_filetype",	0, 0, f_did_filetype},
     {"diff_filler",	1, 1, f_diff_filler},
     {"diff_hlID",	2, 2, f_diff_hlID},
+#ifdef FEAT_DUKTAPE
+    {"dukcall",		2, 2, f_dukcall},
+#endif
     {"empty",		1, 1, f_empty},
     {"escape",		2, 2, f_escape},
     {"eval",		1, 1, f_eval},
@@ -3200,6 +3206,33 @@ f_diff_hlID(typval_T *argvars UNUSED, typval_T *rettv UNUSED)
     rettv->vval.v_number = hlID == (hlf_T)0 ? 0 : (int)hlID;
 #endif
 }
+
+#ifdef FEAT_DUKTAPE
+/*
+ * "dukcall()" function
+ */
+    static void
+f_dukcall(typval_T *argvars, typval_T *rettv)
+{
+    char_u	*func;
+
+    if (argvars[1].v_type != VAR_LIST)
+    {
+	emsg(_(e_listreq));
+	return;
+    }
+    if (argvars[1].vval.v_list == NULL)
+	return;
+
+    func = tv_get_string(&argvars[0]);
+    if (*func == NUL)
+	return;		/* type error or empty name */
+
+    (void)evalfunc_dukcall(func, argvars[1], rettv);
+}
+#endif
+
+
 
 /*
  * "empty({expr})" function
@@ -6320,6 +6353,9 @@ f_has(typval_T *argvars, typval_T *rettv)
 #endif
 #ifdef FEAT_DND
 	"dnd",
+#endif
+#ifdef FEAT_DUKTAPE
+	"duktape",
 #endif
 #ifdef FEAT_EMACS_TAGS
 	"emacs_tags",
