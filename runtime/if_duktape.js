@@ -67,13 +67,13 @@ function initGlobal(globalThis) {
 	    set: function(target, key, value, recv) {
 		var cmd = "let " + ns + ":" + key + " = json_decode('" +
 			JSON.stringify(value) + "')"
-                msg(cmd)
+                //msg(cmd)
 		do_cmdline_cmd(cmd)
                 return true
             },
             deleteProperty: function (target, key) {
                 var cmd = "unlet " + ns + ":" + key
-                msg(cmd)
+                //msg(cmd)
                 do_cmdline_cmd(cmd)
                 return true
             }
@@ -86,11 +86,11 @@ function initGlobal(globalThis) {
 		return globalThis.exists("&" + key)
 	    },
 	    get: function(target, key, recv) {
-		return globalThis.eval("string(&" + key + ")")
+		return globalThis.eval("eval(string(&" + key + "))")
 	    },
 	    set: function(target, key, value, recv) {
 		var cmd = "set " + key + "=" + value
-                msg(cmd)
+                // msg(cmd)
 		do_cmdline_cmd(cmd)
                 return true
             },
@@ -106,6 +106,22 @@ function initGlobal(globalThis) {
     globalThis.$v = new NamespaceProxy("v")
     globalThis.$w = new NamespaceProxy("w")
     globalThis.$o = new OptionProxy()
+
+    function registerExports(exports) {
+        for(name in exports) {
+            globalThis[name] = exports[name];
+            ex("function " + name + "(...)\nreturn dukcall('" + name + "', a:000)\nendfunction")
+        }
+    }
+    globalThis.registerExports = registerExports
+    globalThis.scriptVariables = {}
+    globalThis.source = function(module_id) {
+        delete require.cache[module_id];
+        if(!(module_id in globalThis.scriptVariables)) {
+            globalThis.scriptVariables[module_id] = {};
+        }
+        registerExports(require(module_id));
+    }
 }
 
 initGlobal(this)
