@@ -100,12 +100,28 @@ function initGlobal(globalThis) {
         }
         return new Proxy({}, handler)
     }
+    function DefaultDict(DefaultCls) {
+	var handler = {
+	    has: function (target, key) {
+		return true;
+	    },
+	    get: function(target, key, recv) {
+                if(!(key in target)) {
+                    target[key] = new DefaultCls()
+                }
+		return target[key];
+	    }        
+        }
+        return new Proxy({}, handler)
+    }
     globalThis.$b = new NamespaceProxy("b")
     globalThis.$g = new NamespaceProxy("g")
     globalThis.$t = new NamespaceProxy("t")
     globalThis.$v = new NamespaceProxy("v")
     globalThis.$w = new NamespaceProxy("w")
     globalThis.$o = new OptionProxy()
+
+    globalThis.scriptVariables = new DefaultDict(Object);
 
     function registerExports(exports) {
         for(name in exports) {
@@ -114,12 +130,8 @@ function initGlobal(globalThis) {
         }
     }
     globalThis.registerExports = registerExports
-    globalThis.scriptVariables = {}
     globalThis.source = function(module_id) {
         delete require.cache[module_id];
-        if(!(module_id in globalThis.scriptVariables)) {
-            globalThis.scriptVariables[module_id] = {};
-        }
         registerExports(require(module_id));
     }
 }

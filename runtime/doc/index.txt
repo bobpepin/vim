@@ -1270,6 +1270,8 @@ tag		command		action ~
 				current window
 |:dsearch|	:ds[earch]	list one #define
 |:dsplit|	:dsp[lit]	split window and jump to #define
+:duktape	:duk[tape]	execute javascript code given as argument
+:dukfile	:dukf[ile]	execute javascript code from file
 |:edit|		:e[dit]		edit a file
 |:earlier|	:ea[rlier]	go to older change, undo
 |:echo|		:ec[ho]		echoes the result of expressions

@@ -398,8 +398,19 @@ CClink = $(CC)
 # the failing interfaces.
 #CONF_OPT_FAIL = --enable-fail-if-missing
 
+# Duktape Javascript Interpreter (see :help duktape)
+# Uncomment the next lines if you want to include the Duktape interface.  
+# Use --with-duktape-prefix to point to the directory from a duktape
+# source release containing the files duktape.[ch] and duk_config.h (typically
+# .../duktape-x.y.z/src).
+# Use --with-duktape-module-node-prefix to point to the directory containing
+# the files duk_module_node.[ch] (typically
+# .../duktape-x.y.z/extras/module-node). This defaults to
+# <duktape-prefix>/../extras/module-node
+
 CONF_OPT_DUKTAPE = --enable-duktapeinterp
 CONF_OPT_DUKTAPE_PREFIX = --with-duktape-prefix=$(HOME)/Documents/duktape-2.3.0/src
+# CONF_OPT_DUKTAPE_MODULE_NODE_PREFIX = --with-duktape-module-node-prefix=$(HOME)/Documents/duktape-2.3.0/extras/module-node
 
 # LUA
 # Uncomment one of these when you want to include the Lua interface.
