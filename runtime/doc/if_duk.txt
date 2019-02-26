@@ -1,0 +1,96 @@
+*if_duk.txt*   For Vim version 8.1.  Last change: 2019 Feb 25
+
+
+		  VIM REFERENCE MANUAL    by Bob Pepin
+
+
+The Duktape JavaScript Interface to Vim		*duktape* *Duktape*
+
+1. Commands					|duktape-commands|
+2. The Vim ECMAScript API			|duktape-vim|
+3. dukcall() Vim function			|duktape-dukcall|
+4. Building with Duktape support		|duktape-building|
+
+{Vi does not have any of these commands}
+
+The Duktape interface is available only when Vim was compiled with the
+|+duktape| feature.
+
+==============================================================================
+1. Commands						*duktape-commands*
+
+							*:duktape* *:duk*
+:[range]duk[tape] {code}
+			Evaluate the ECMAScript source code {code}.  
+			A simple check if the `:duktape` command is working: >
+				:duktape msg("Hello, World!")
+<
+							*:dukfile* *:dukf*
+:[range]dukf[ile] {file}
+			Execute the ECMAScript code in {file}.  The whole
+			argument is used as a single file name.  {not in Vi}
+
+Both of these commands do essentially the same thing - they execute a piece of
+ECMAScript code, with the "current range" |python-range| set to the given line
+range.
+
+In the case of :duktape, the code to execute is in the command-line.
+In the case of :dukfile, the code to execute is the contents of the given file.
+
+Here are some examples					*duktape-examples*  >
+
+	:duk var line = getline(".")
+	:duk setline(".", line.toLowerCase()) 
+	:duk msg("Vim version: " + $v.version)
+	:duk $b.changedtick
+
+(Note that variable assignments persist from one command to the next. All
+duktape commands are executed in the same interpreter context.)
+
+==============================================================================
+2. The Vim ECMAScript API 				*duktape-vim*
+
+Low-level functions
+
+At the lowest level, the Vim ECMAScript API exposes the following four
+functions from the Vim C API to ECMAScript code:
+
+msg(arg)						*duktape-msg*
+	Converts message to a string and outputs it in the Vim status line.
+	Returns undefined.
+	Examples: >
+	    :duk msg("Hello")
+<
+read_blob(filename)					*duktape-read-blob*
+	Reads a file.  Returns a Duktape Buffer with the contents of filename.
+	Examples: >
+	    :duk var data = read_blob("/path/to/file")
+<
+do_cmdline_cmd(cmd) 					*duktape-do-cmdline-cmd*
+	Executes the vim (ex-mode) command cmd.  Returns undefined.
+	Examples: >
+	    :duk do_cmdline_cmd("set tw=72")
+
+call_internal_func(func, args) 			*duktape-call-internal-func*
+	Executes the vim-script builtin function func (a string) with the
+	arguments given in the list args and returns the result.  The only
+	supported data types are strings and integers.
+
+	Examples: >
+	    :duk var text_width = call_internal_func("eval", ["&tw"])
+
+==============================================================================
+8. dukcall() Vim function				*dukcall*
+
+To facilitate bi-directional interface, you can use the |dukcall()| function
+in Vim scripts to call ECMAScript functions and pass their values to Vim
+script.  
+
+dukcall(func, arglist)
+	Looks up func (a string) in the ECMAScript global object, calls it
+	with the arguments in arglist and returns the result.  The supported
+	data types for arguments and return values are limited to strings and
+	integers.
+
+==============================================================================
+ vim:tw=78:ts=8:noet:ft=help:norl:
