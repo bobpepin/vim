@@ -118,6 +118,24 @@ static duk_ret_t vduk_read_blob(duk_context *ctx) {
     return 1;
 }
 
+static void vduk_do_in_path_cb(char_u *fname, void *udata) {
+    duk_context *ctx = (duk_context*)udata;
+    duk_push_string(ctx, (const char*)fname);
+    duk_call(ctx, 1);
+    duk_pop(ctx);
+}
+
+static duk_ret_t vduk_do_in_path(duk_context *ctx) {
+    char_u *path = (char_u*)duk_get_string(ctx, 0);
+    char_u *name = (char_u*)duk_get_string(ctx, 1);
+    int flags = duk_get_int(ctx, 2);
+    int r = do_in_path(path, name, flags, &vduk_do_in_path_cb, (void*)ctx);
+    duk_push_int(ctx, r);
+    return 1;
+}
+
+static duk_ret_t vduk_eval_file(duk_context *ctx, void *udata);
+
 static duk_ret_t vduk_init_context(duk_context *ctx, void *udata) {
     duk_push_global_object(ctx);
     duk_push_c_lightfunc(ctx, vduk_msg, 1, 1, 0);
@@ -128,15 +146,34 @@ static duk_ret_t vduk_init_context(duk_context *ctx, void *udata) {
     duk_put_prop_string(ctx, -2, "call_internal_func");
     duk_push_c_lightfunc(ctx, vduk_read_blob, 1, 1, 0);
     duk_put_prop_string(ctx, -2, "read_blob");
+    duk_push_c_lightfunc(ctx, vduk_do_in_path, 4, 4, 0);
+    duk_put_prop_string(ctx, -2, "do_in_path");
     duk_pop(ctx);
     /* Initialize module system */
     duk_eval_string(ctx,
-	"({ resolve: function (requested_id, parent_id) { "
-	"    return requested_id },"
-	"  load: function(resolved_id, exports, module) {"
-	"    return (new TextDecoder()).decode(read_blob(resolved_id)); } })"
-	);
+	"(function () {"
+	"    function resolve(requested_id, parent_id) {"
+	"	 var path = call_internal_func('eval', ['&rtp']);"
+	"        var resolved_id = undefined;"
+	"        do_in_path(path, requested_id, 0, "
+	"             function (fname) { resolved_id = fname; });"
+	"        if(resolved_id === undefined) {"
+	"            var error = Error('Not found in runtimepath: ' + requested_id);"
+	"	     error.name = 'MODULE_NOT_FOUND';"
+	"            throw error;"
+	"        }"
+	"        return resolved_id;"
+	"    }"
+	"    function load(resolved_id, exports, module) {"
+	"        return (new TextDecoder()).decode(read_blob(resolved_id));"
+	"    }" 
+	"    return { resolve: resolve, load: load };"
+	"})");
+    duk_call(ctx, 0);
     duk_module_node_init(ctx);
+    if(duk_peval_string_noresult(ctx, "require('if_duktape.js')") != 0) {
+	semsg("Duktape: Failed to load if_duktape.js, only low-level API available");
+    };
     return 0;
 }
 
@@ -173,7 +210,7 @@ ex_duktape(exarg_T *eap)
     if (duk_peval_string(ctx, evalstr) != 0) {
 	semsg("Duktape error: %s", duk_safe_to_string(ctx, -1));
     } else {
-	smsg("Duktape: %s", duk_safe_to_string(ctx, -1));
+	smsg("Duktape result: %s", duk_safe_to_string(ctx, -1));
     }
     duk_pop(ctx);
     vim_free(script);

@@ -7,9 +7,10 @@
 The Duktape JavaScript Interface to Vim		*duktape* *Duktape*
 
 1. Commands					|duktape-commands|
-2. The Vim ECMAScript API			|duktape-vim|
-3. dukcall() Vim function			|duktape-dukcall|
-4. Building with Duktape support		|duktape-building|
+2. The Module system 				|duktape-modules|
+3. The high-level API				|duktape-vim|
+4. The low-level API				|duktape-lowlevel|
+5. dukcall() Vim function			|duktape-dukcall|
 
 {Vi does not have any of these commands}
 
@@ -30,12 +31,6 @@ The Duktape interface is available only when Vim was compiled with the
 			Execute the ECMAScript code in {file}.  The whole
 			argument is used as a single file name.  {not in Vi}
 
-Both of these commands do essentially the same thing - they execute a piece of
-ECMAScript code, with the "current range" |python-range| set to the given line
-range.
-
-In the case of :duktape, the code to execute is in the command-line.
-In the case of :dukfile, the code to execute is the contents of the given file.
 
 Here are some examples					*duktape-examples*  >
 
@@ -48,9 +43,57 @@ Here are some examples					*duktape-examples*  >
 duktape commands are executed in the same interpreter context.)
 
 ==============================================================================
-2. The Vim ECMAScript API 				*duktape-vim*
+2. The Vim ECMAScript Module system			 *duktape-modules*
 
-Low-level functions
+The Duktape API supports a Node.js-style module system.
+
+require(fname)
+	Searches for a file fname in runtimepath and, if found, performs the
+	following actions:
+	1. If the file has previously been loaded by require, skip the
+	   remaining steps.
+	2. Call the ECMAScript function >
+		function (module, exports, filename) { <contents of fname> }
+<	   with exports bound to an ECMAScript object to be populated.
+	3. Return the exports object
+
+==============================================================================
+3. The high-level API						*duktape-vim*
+
+This API mirrors the Vim Script API and is implemented using the functions
+described further down in the section on the low-level API. The implementation
+is contained in the file if_duktape.js which is part of the Vim-with-Duktape
+runtime.  
+
+It provides the global objects $b, $g, $t, $v and $w that correspond to the
+Vim script namespaces b:, g:, t:, v: and w:. Examples: >
+
+	:duk $b.changedtick    	// Access buffer variable
+	:duk $g.foo = 1        	// Set value of global variable
+	:echo g:foo           	// Check that value is visible to Vim
+	:duk delete $g.foo     	// Delete global variable
+	:echo g:foo		// E121: Undefined variable: g:foo
+	:duk $v.version         // Access vim-internal variables
+	
+Options can be accessed as properties of the $o object: >
+
+	:duk $o.rtp		// Get value of runtimepath
+	:duk $o.syntax = "off"  // Set option value
+
+All Vim script builtin functions except eval have ECMAScript wrappers with the
+same name. Vim script eval is accessed as vim_eval, since it clashes with the
+ECMAScript eval function. Examples: >
+
+	:duk var l = bufname(0); append(".", "Buffer name: "+l)   
+	:duk vim_eval("&rtp")
+
+Ex commands are executed through the ex function. Example: >
+
+	:duk ex("set cindent")
+	:duk ex("normal ddGp")	// Move current line to end of buffer
+
+==============================================================================
+4. The low-level API					*duktape-lowlevel*
 
 At the lowest level, the Vim ECMAScript API exposes the following four
 functions from the Vim C API to ECMAScript code:
@@ -80,7 +123,7 @@ call_internal_func(func, args) 			*duktape-call-internal-func*
 	    :duk var text_width = call_internal_func("eval", ["&tw"])
 
 ==============================================================================
-8. dukcall() Vim function				*dukcall*
+5. dukcall() Vim function				*dukcall*
 
 To facilitate bi-directional interface, you can use the |dukcall()| function
 in Vim scripts to call ECMAScript functions and pass their values to Vim

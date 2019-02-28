@@ -6,7 +6,7 @@ function initGlobal(globalThis) {
 	'changenr', 'char2nr', 'cindent', 'clearmatches', 'col', 'complete',
 	'complete_add', 'complete_check', 'confirm', 'copy', 'cos', 'cosh',
 	'count', 'cscope_connection', 'cursor', 'cursor', 'deepcopy', 'delete',
-	'did_filetype', 'diff_filler', 'diff_hlID', 'empty', 'escape', 'eval',
+	'did_filetype', 'diff_filler', 'diff_hlID', 'empty', 'escape', /* 'eval', */
 	'eventhandler', 'executable', 'exists', 'extend', 'exp', 'expand',
 	'feedkeys', 'filereadable', 'filewritable', 'filter', 'finddir',
 	'findfile', 'float2nr', 'floor', 'fmod', 'fnameescape', 'fnamemodify',
@@ -54,6 +54,10 @@ function initGlobal(globalThis) {
 	}
     })
 
+    globalThis.vim_eval = function(str) {
+        return call_internal_func('eval', [str]);
+    }
+
     globalThis.ex = do_cmdline_cmd
 
     function NamespaceProxy(ns) {
@@ -62,7 +66,7 @@ function initGlobal(globalThis) {
 		return globalThis.exists(ns + ":" + key)
 	    },
 	    get: function(target, key, recv) {
-		return globalThis.eval(ns + ":" + key)
+		return globalThis.vim_eval(ns + ":" + key)
 	    },
 	    set: function(target, key, value, recv) {
 		var cmd = "let " + ns + ":" + key + " = json_decode('" +
@@ -86,7 +90,7 @@ function initGlobal(globalThis) {
 		return globalThis.exists("&" + key)
 	    },
 	    get: function(target, key, recv) {
-		return globalThis.eval("eval(string(&" + key + "))")
+		return globalThis.vim_eval("eval(string(&" + key + "))")
 	    },
 	    set: function(target, key, value, recv) {
 		var cmd = "set " + key + "=" + value
