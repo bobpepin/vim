@@ -38,6 +38,7 @@
 #	  could be lost.
 #	- Uncomment one or more of these lines to include an interface;
 #	  each makes Vim quite a bit bigger:
+#		--enable-duktapeinterp	for Duktape ECMAScript interpreter
 #		--enable-luainterp	for Lua interpreter
 #		--enable-mzschemeinterp	for MzScheme interpreter
 #		--enable-perlinterp	for Perl interpreter
@@ -398,8 +399,10 @@ CClink = $(CC)
 # the failing interfaces.
 #CONF_OPT_FAIL = --enable-fail-if-missing
 
-# Duktape Javascript Interpreter (see :help duktape)
-# Uncomment the next lines if you want to include the Duktape interface.  
+# Duktape JavaScript/ECMAScript Interpreter (see :help duktape)
+# Uncomment the next lines if you want to include the Duktape ECMAScript 
+# interpreter. Download the source release from 
+# https://duktape.org/download.html. 
 # Use --with-duktape-prefix to point to the directory from a duktape
 # source release containing the files duktape.[ch] and duk_config.h (typically
 # .../duktape-x.y.z/src).
