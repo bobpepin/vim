@@ -2308,6 +2308,10 @@ $VIM_POSIX	vi_diff.txt	/*$VIM_POSIX*
 :dsearch	tagsrch.txt	/*:dsearch*
 :dsp	tagsrch.txt	/*:dsp*
 :dsplit	tagsrch.txt	/*:dsplit*
+:duk	if_duk.txt	/*:duk*
+:dukf	if_duk.txt	/*:dukf*
+:dukfile	if_duk.txt	/*:dukfile*
+:duktape	if_duk.txt	/*:duktape*
 :e	editing.txt	/*:e*
 :ea	undo.txt	/*:ea*
 :earlier	undo.txt	/*:earlier*
@@ -3769,6 +3773,7 @@ Dictionary-function	eval.txt	/*Dictionary-function*
 DiffUpdated	autocmd.txt	/*DiffUpdated*
 Digraphs	digraph.txt	/*Digraphs*
 DirChanged	autocmd.txt	/*DirChanged*
+Duktape	if_duk.txt	/*Duktape*
 E	motion.txt	/*E*
 E10	message.txt	/*E10*
 E100	diff.txt	/*E100*
@@ -5966,6 +5971,18 @@ drag-n-drop-win32	gui_w32.txt	/*drag-n-drop-win32*
 drag-status-line	term.txt	/*drag-status-line*
 dtd.vim	syntax.txt	/*dtd.vim*
 dtd2vim	insert.txt	/*dtd2vim*
+dukcall	if_duk.txt	/*dukcall*
+duktape	if_duk.txt	/*duktape*
+duktape-call-internal-func	if_duk.txt	/*duktape-call-internal-func*
+duktape-commands	if_duk.txt	/*duktape-commands*
+duktape-do-cmdline-cmd	if_duk.txt	/*duktape-do-cmdline-cmd*
+duktape-examples	if_duk.txt	/*duktape-examples*
+duktape-lowlevel	if_duk.txt	/*duktape-lowlevel*
+duktape-modules	if_duk.txt	/*duktape-modules*
+duktape-msg	if_duk.txt	/*duktape-msg*
+duktape-read-blob	if_duk.txt	/*duktape-read-blob*
+duktape-source	if_duk.txt	/*duktape-source*
+duktape-vim	if_duk.txt	/*duktape-vim*
 dying-variable	eval.txt	/*dying-variable*
 e	motion.txt	/*e*
 easy	starting.txt	/*easy*
@@ -7165,6 +7182,7 @@ ident-search	tips.txt	/*ident-search*
 idl-syntax	syntax.txt	/*idl-syntax*
 idl.vim	syntax.txt	/*idl.vim*
 if_cscop.txt	if_cscop.txt	/*if_cscop.txt*
+if_duk.txt	if_duk.txt	/*if_duk.txt*
 if_lua.txt	if_lua.txt	/*if_lua.txt*
 if_mzsch.txt	if_mzsch.txt	/*if_mzsch.txt*
 if_ole.txt	if_ole.txt	/*if_ole.txt*

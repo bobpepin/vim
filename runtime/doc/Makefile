@@ -41,6 +41,7 @@ DOCS = \
 	helphelp.txt \
 	howto.txt \
 	if_cscop.txt \
+	if_duk.txt \
 	if_lua.txt \
 	if_mzsch.txt \
 	if_ole.txt \
@@ -178,6 +179,7 @@ HTMLS = \
 	helphelp.html \
 	howto.html \
 	if_cscop.html \
+	if_duk.html \
 	if_lua.html \
 	if_mzsch.html \
 	if_ole.html \
