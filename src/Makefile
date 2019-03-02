@@ -550,7 +550,7 @@ CONF_OPT_DUKTAPE_PREFIX = --with-duktape-prefix=$(HOME)/Documents/duktape-2.3.0/
 # The default is "huge" for most systems.
 #CONF_OPT_FEAT = --with-features=tiny
 #CONF_OPT_FEAT = --with-features=small
-CONF_OPT_FEAT = --with-features=normal
+#CONF_OPT_FEAT = --with-features=normal
 #CONF_OPT_FEAT = --with-features=big
 #CONF_OPT_FEAT = --with-features=huge
 
@@ -598,14 +598,14 @@ CONF_OPT_FEAT = --with-features=normal
 # again.
 #CC = cc
 #CC = gcc
-CC = clang
+#CC = clang
 
 # COMPILER FLAGS - change as you please. Either before running {{{1
 # configure or afterwards. For examples see below.
 # When using -g with some older versions of Linux you might get a
 # statically linked executable.
 # When not defined, configure will try to use -O2 -g for gcc and -O for cc.
-CFLAGS = -g
+#CFLAGS = -g
 #CFLAGS = -O
 
 # Optimization limits - depends on the compiler.  Automatic check in configure
