@@ -65,8 +65,25 @@ described further down in the section on the low-level API. The implementation
 is contained in the file if_duktape.js which is part of the Vim-with-Duktape
 runtime.  
 
-It provides the global objects $b, $g, $t, $v and $w that correspond to the
-Vim script namespaces b:, g:, t:, v: and w:. Examples: >
+The "source" function is the ECMAScript equivalent to the Vim ":source" ex
+command.
+
+source(fname) 							*duktape-source*
+	Loads the ECMAScript module fname from the runtime path, even if it
+	has been loaded previously, and creates Vim User functions for the
+	ECMAScript functions exported by the module.
+	More precisely, source(fname) performs the following steps:
+	1. Delete fname from the module cache used by require
+	2. Execute require(fname) and assign the result to a temporary object
+	   <exports>.
+	3. For every property <func> of <exports>
+	   a. create a global property <func> with the value of
+	      the corresponding property <func> of <exports>
+           b. run the ex script 
+              "function! <func>(...)\n dukcall('<func>', a:000)\n endfunction"
+
+The API provides the global objects $b, $g, $t, $v and $w that correspond to
+the Vim script namespaces b:, g:, t:, v: and w:. Examples: >
 
 	:duk $b.changedtick    	// Access buffer variable
 	:duk $g.foo = 1        	// Set value of global variable
