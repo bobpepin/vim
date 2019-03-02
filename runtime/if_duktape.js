@@ -11,8 +11,8 @@ function initGlobal(globalThis) {
 	'feedkeys', 'filereadable', 'filewritable', 'filter', 'finddir',
 	'findfile', 'float2nr', 'floor', 'fmod', 'fnameescape', 'fnamemodify',
 	'foldclosed', 'foldclosedend', 'foldlevel', 'foldtext',
-	'foldtextresult', 'foreground', 'function', 'garbagecollect', 'get',
-	'get', 'getbufline', 'getbufvar', 'getchar', 'getcharmod',
+	'foldtextresult', 'foreground', 'function', 'garbagecollect', 
+	/* 'get' */, 'getbufline', 'getbufvar', 'getchar', 'getcharmod',
 	'getcmdline', 'getcmdpos', 'getcmdtype', 'getcwd', 'getfperm',
 	'getfsize', 'getfontname', 'getftime', 'getftype', 'getline',
 	'getline', 'getloclist', 'getmatches', 'getpid', 'getpos', 'getqflist',
@@ -56,6 +56,14 @@ function initGlobal(globalThis) {
 
     globalThis.vim_eval = function(str) {
         return call_internal_func('eval', [str]);
+    }
+
+    globalThis.get = function(obj, key, default_val) {
+        if(key in obj) {
+            return obj[key];
+        } else {
+            return default_val;
+        }
     }
 
     globalThis.ex = do_cmdline_cmd
@@ -130,7 +138,7 @@ function initGlobal(globalThis) {
     function registerExports(exports) {
         for(name in exports) {
             globalThis[name] = exports[name];
-            ex("function " + name + "(...)\nreturn dukcall('" + name + "', a:000)\nendfunction")
+            ex("function! " + name + "(...)\nreturn dukcall('" + name + "', a:000)\nendfunction")
         }
     }
     globalThis.registerExports = registerExports

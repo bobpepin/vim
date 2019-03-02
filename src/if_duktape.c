@@ -158,7 +158,7 @@ static duk_ret_t vduk_init_context(duk_context *ctx, void *udata) {
 	"        do_in_path(path, requested_id, 0, "
 	"             function (fname) { resolved_id = fname; });"
 	"        if(resolved_id === undefined) {"
-	"            var error = Error('Not found in runtimepath: ' + requested_id);"
+	"            var error = new Error('File not found in runtimepath: ' + requested_id);"
 	"	     error.name = 'MODULE_NOT_FOUND';"
 	"            throw error;"
 	"        }"
@@ -171,9 +171,10 @@ static duk_ret_t vduk_init_context(duk_context *ctx, void *udata) {
 	"})");
     duk_call(ctx, 0);
     duk_module_node_init(ctx);
-    if(duk_peval_string_noresult(ctx, "require('if_duktape.js')") != 0) {
-	semsg("Duktape: Failed to load if_duktape.js, only low-level API available");
+    if(duk_peval_string(ctx, "require('if_duktape.js')") != 0) {
+	semsg("Duktape: Failed to load high-level API: %s", duk_safe_to_string(ctx, -1));
     };
+    duk_pop(ctx);
     return 0;
 }
 
@@ -279,7 +280,7 @@ void evalfunc_dukcall(const char_u *func, typval_T arglist, typval_T *rettv) {
 	return;
     }
     dukcall_args dc_args = { func, arglist.vval.v_list, rettv };
-    if (duk_safe_call(ctx, vduk_eval_file, (void*)&dc_args, 0, 1) != 0) {
+    if (duk_safe_call(ctx, vduk_dukcall, (void*)&dc_args, 0, 1) != 0) {
 	semsg("Duktape error: dukcall(%s): %s", func, duk_safe_to_string(ctx, -1));
     }
     duk_pop(ctx);
