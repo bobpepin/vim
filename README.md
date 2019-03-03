@@ -1,3 +1,30 @@
+This Vim has the Duktape ECMAScript interpreter integrated.
+
+To get started, download a source release of Duktape from http://duktape.org, clone this repository and edit src/Makefile so that CONF_OPT_DUKTAPE_PREFIX points to the Duktape sources. Then compile as usual.
+
+There are two new ex commands, `:duktape` and `:dukfile` to execute ECMAScript code from the command line and from a file.
+
+Sone examples of the API:
+```
+	:duk var l = bufname(0); append(".", "Buffer name: "+l)
+	:duk $o.syntax = "off"  // Set option value
+	:duk ex("normal ddGp")	// Move current line to end of buffer
+```
+
+There is API documentation and examples under :help duktape, or in
+runtime/doc/if_duk.txt.
+
+An example of a complete script can be found in runtime/indent/python.js. 
+This file was generated from indent/python.vim using a vimscript to ECMAScript compiler which can be found at
+https://github.com/bobpepin/vim2js.
+
+To load the script, in a new buffer do :duk source(‘indent/python.js’) and write
+some python code, which should now use the ECMAScript code for indenting. It
+is also instructive to do vim -O python.vim python.js to get a side-by-side
+view of the two APIs.
+
+The original Vim README follows.
+
 ![Vim Logo](https://github.com/vim/vim/blob/master/runtime/vimlogo.gif)
 
 [![Build Status](https://travis-ci.org/vim/vim.svg?branch=master)](https://travis-ci.org/vim/vim)
