@@ -1,5 +1,7 @@
 This Vim has the Duktape ECMAScript interpreter integrated.
 
+You can use the ES5 programming language to script Vim, with no external dependencies at runtime. It supports all Vim builtin functions and Node.js-type modules. The ES5 language (also known as Javascript) is a modern programming language that is widely used and has a huge library of open source code. Many other programming languages can be compiled into ES5.
+
 To get started, download a source release of Duktape from http://duktape.org, clone this repository and edit src/Makefile so that CONF_OPT_DUKTAPE_PREFIX points to the Duktape sources. Then compile as usual.
 
 There are two new ex commands, `:duktape` and `:dukfile` to execute ECMAScript code from the command line and from a file.
