@@ -16,6 +16,8 @@
 #include "duktape.h"
 #include "duk_module_node.h"
 
+#include <string.h>
+
 duk_ret_t vduk_msg(duk_context *ctx) {
     msg((char*)duk_to_string(ctx, -1));
     duk_pop(ctx);
@@ -118,6 +120,33 @@ static duk_ret_t vduk_read_blob(duk_context *ctx) {
     return 1;
 }
 
+static duk_ret_t vduk_compile(duk_context *ctx) {
+    duk_uint_t flags = 0;
+    duk_get_prop_string(ctx, 2, "eval");
+    if(duk_to_boolean(ctx, -1)) {
+	flags |= DUK_COMPILE_EVAL;
+    }
+    duk_pop(ctx);
+    duk_get_prop_string(ctx, 2, "function");
+    if(duk_to_boolean(ctx, -1)) {
+	flags |= DUK_COMPILE_FUNCTION;
+    }
+    duk_pop(ctx);
+    duk_get_prop_string(ctx, 2, "strict");
+    if(duk_to_boolean(ctx, -1)) {
+	flags |= DUK_COMPILE_STRICT;
+    }
+    duk_pop(ctx);
+    duk_get_prop_string(ctx, 2, "shebang");
+    if(duk_to_boolean(ctx, -1)) {
+	flags |= DUK_COMPILE_SHEBANG;
+    }
+    duk_pop(ctx);
+    duk_pop(ctx);
+    duk_compile(ctx, flags);
+    return 1;
+}
+
 static void vduk_do_in_path_cb(char_u *fname, void *udata) {
     duk_context *ctx = (duk_context*)udata;
     duk_push_string(ctx, (const char*)fname);
@@ -146,6 +175,8 @@ static duk_ret_t vduk_init_context(duk_context *ctx, void *udata) {
     duk_put_prop_string(ctx, -2, "call_internal_func");
     duk_push_c_lightfunc(ctx, vduk_read_blob, 1, 1, 0);
     duk_put_prop_string(ctx, -2, "read_blob");
+    duk_push_c_lightfunc(ctx, vduk_compile, 3, 3, 0);
+    duk_put_prop_string(ctx, -2, "compile");
     duk_push_c_lightfunc(ctx, vduk_do_in_path, 4, 4, 0);
     duk_put_prop_string(ctx, -2, "do_in_path");
     duk_pop(ctx);
@@ -211,7 +242,9 @@ ex_duktape(exarg_T *eap)
     if (duk_peval_string(ctx, evalstr) != 0) {
 	semsg("Duktape error: %s", duk_safe_to_string(ctx, -1));
     } else {
-	smsg("Duktape result: %s", duk_safe_to_string(ctx, -1));
+	if(!duk_is_undefined(ctx, -1)) {
+	    smsg("Duktape result: %s", duk_safe_to_string(ctx, -1));
+	}
     }
     duk_pop(ctx);
     vim_free(script);
