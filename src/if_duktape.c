@@ -24,6 +24,12 @@ duk_ret_t vduk_msg(duk_context *ctx) {
     return 0;
 }
 
+duk_ret_t vduk_emsg(duk_context *ctx) {
+    emsg((char*)duk_to_string(ctx, -1));
+    duk_pop(ctx);
+    return 0;
+}
+
 static duk_ret_t vduk_do_cmdline_cmd(duk_context *ctx) {
     int r = do_cmdline_cmd((char_u*)duk_to_string(ctx, -1));
     duk_pop(ctx);
@@ -169,6 +175,8 @@ static duk_ret_t vduk_init_context(duk_context *ctx, void *udata) {
     duk_push_global_object(ctx);
     duk_push_c_lightfunc(ctx, vduk_msg, 1, 1, 0);
     duk_put_prop_string(ctx, -2, "msg");
+    duk_push_c_lightfunc(ctx, vduk_emsg, 1, 1, 0);
+    duk_put_prop_string(ctx, -2, "emsg");
     duk_push_c_lightfunc(ctx, vduk_do_cmdline_cmd, 1, 1, 0);
     duk_put_prop_string(ctx, -2, "do_cmdline_cmd");
     duk_push_c_lightfunc(ctx, vduk_call_internal_func, 2, 2, 0);
@@ -228,6 +236,27 @@ static duk_context *vduk_get_context() {
 /*
  * ":duktape"
  */
+
+static duk_ret_t vduk_print_error(duk_context *ctx, void *udata) {
+    duk_eval_string(ctx,
+	    "(function (e) {"
+	    "	var lines = e.stack.split('\\n');"
+	    "	for(var i=0; i < lines.length; i++) {"
+	    "	    emsg(lines[i]);"
+	    "	}"
+	    "})");
+    duk_dup(ctx, -2);
+    duk_call(ctx, 1);
+    duk_pop(ctx);
+    return 1;
+}
+
+static void vduk_error_msg(duk_context *ctx) {
+    if(duk_safe_call(ctx, vduk_print_error, NULL, 1, 1) != 0) {
+	semsg("Duktape: Error in error handler: %s", duk_safe_to_string(ctx, -1));
+    }
+}
+
 void
 ex_duktape(exarg_T *eap)
 {
@@ -240,11 +269,10 @@ ex_duktape(exarg_T *eap)
     }
     char *evalstr = script == NULL ? (char *) eap->arg : (char *) script;
     if (duk_peval_string(ctx, evalstr) != 0) {
-	semsg("Duktape error: %s", duk_safe_to_string(ctx, -1));
+	vduk_error_msg(ctx);
+	// semsg("Duktape error: %s", duk_safe_to_string(ctx, -1));
     } else {
-	if(!duk_is_undefined(ctx, -1)) {
-	    smsg("Duktape result: %s", duk_safe_to_string(ctx, -1));
-	}
+	smsg("%s", duk_safe_to_string(ctx, -1));
     }
     duk_pop(ctx);
     vim_free(script);
@@ -276,7 +304,10 @@ void ex_dukfile(exarg_T *eap)
     }
     const char *fname = (const char *) eap->arg;
     if (duk_safe_call(ctx, vduk_eval_file, (void*)fname, 0, 1) != 0) {
-	semsg("Duktape error: %s: %s", fname, duk_safe_to_string(ctx, -1));
+	vduk_error_msg(ctx);
+	// semsg("Duktape error: %s: %s", fname, duk_safe_to_string(ctx, -1));
+    } else {
+	smsg("%s", duk_safe_to_string(ctx, -1));
     }
     duk_pop(ctx);
 }
@@ -314,7 +345,8 @@ void evalfunc_dukcall(const char_u *func, typval_T arglist, typval_T *rettv) {
     }
     dukcall_args dc_args = { func, arglist.vval.v_list, rettv };
     if (duk_safe_call(ctx, vduk_dukcall, (void*)&dc_args, 0, 1) != 0) {
-	semsg("Duktape error: dukcall(%s): %s", func, duk_safe_to_string(ctx, -1));
+	semsg("Duktape error in dukcall(%s):", func);
+	vduk_error_msg(ctx);
     }
     duk_pop(ctx);
 }
