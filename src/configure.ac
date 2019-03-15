@@ -549,33 +549,20 @@ located.],
 	with_duktape_prefix="$withval"; AC_MSG_RESULT($with_duktape_prefix),
 	with_duktape_prefix="";AC_MSG_RESULT(no))
 
-  AC_MSG_CHECKING(--with-duktape-module-node-prefix argument)
-  AC_ARG_WITH(duktape_module_node_prefix,
-	[  --with-duktape-module-node-prefix=PFX   Prefix where Duktape Node.js module API sources are
-located.],
-	with_duktape_module_node_prefix="$withval"; AC_MSG_RESULT($with_duktape_module_node_prefix),
-	with_duktape_module_node_prefix="";AC_MSG_RESULT(no))
   if test "X$with_duktape_prefix" != "X"; then
     vi_cv_path_duktape_pfx="$with_duktape_prefix"
     duktape_ok="yes"
   fi
-  if test "X$with_duktape_module_node_prefix" != "X"; then
-    vi_cv_path_duktape_module_node_pfx="$with_duktape_module_node_prefix"
-  else
-    vi_cv_path_duktape_module_node_pfx="${vi_cv_path_duktape_pfx}/../extras/module-node"
-  fi
   if test "x$duktape_ok" = "xyes"; then
-    DUKTAPE_CFLAGS="-I${vi_cv_path_duktape_pfx} -I${vi_cv_path_duktape_module_node_pfx}"
+    DUKTAPE_CFLAGS="-I${vi_cv_path_duktape_pfx}"
     DUKTAPE_DIST_SRC="${vi_cv_path_duktape_pfx}/duktape.c" 
-    DUKTAPE_MODULE_NODE_SRC="${vi_cv_path_duktape_module_node_pfx}/duk_module_node.c"
-    DUKTAPE_SRC="if_duktape.c ${DUKTAPE_DIST_SRC} ${DUKTAPE_MODULE_NODE_SRC}"
-    DUKTAPE_OBJ="objects/if_duktape.o objects/duktape.o objects/duk_module_node.o"
+    DUKTAPE_SRC="if_duktape.c ${DUKTAPE_DIST_SRC}"
+    DUKTAPE_OBJ="objects/if_duktape.o objects/duktape.o" 
     DUKTAPE_PRO="if_duktape.pro"
     AC_DEFINE(FEAT_DUKTAPE)
   fi
   AC_SUBST(DUKTAPE_SRC)
   AC_SUBST(DUKTAPE_DIST_SRC)
-  AC_SUBST(DUKTAPE_MODULE_NODE_SRC)
   AC_SUBST(DUKTAPE_OBJ)
   AC_SUBST(DUKTAPE_PRO)
   AC_SUBST(DUKTAPE_CFLAGS)

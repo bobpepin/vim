@@ -47,6 +47,8 @@ function initGlobal(globalThis) {
 	'winline', 'winnr', 'winrestcmd', 'winrestview', 'winsaveview',
 	'winwidth', 'writefile', 'xor']
 
+    globalThis.globalThis = globalThis
+
     vim_builtin_functions.forEach(function (fn) {
 	globalThis[fn] = function () {
 	    var arglist = Array.prototype.slice.call(arguments);
@@ -144,8 +146,86 @@ function initGlobal(globalThis) {
     globalThis.registerExports = registerExports
     globalThis.source = function(module_id) {
         delete require.cache[module_id];
-        registerExports(require(module_id));
+        var exports = require(module_id);
+        registerExports(exports);
+        return exports;
     }
 }
 
-initGlobal(this)
+function initModules(globalThis) {
+    var moduleCache = {}
+
+    function handleRequire(id) {
+        var parentId = this.moduleId;
+        var resolvedId = this.resolve(id, parentId);
+        if(resolvedId in this.cache) {
+            return this.cache[resolvedId];
+        }
+        var module = {
+            filename: id,
+            id: id,
+            exports: {},
+            loaded: false,
+            require: makeRequireFun(this)
+        }
+        module.require.moduleId = id;
+        this.cache[resolvedId] = module;
+        try {
+            var src = this.load(resolvedId, module.exports, module);
+            if(typeof src === "string") {
+                var module_src = "function(exports,require,module,__filename,__dirname){";
+                if(src[0] == '#' && src[1] == '!') {
+                    module_src += "//";
+                }
+                module_src += src;
+                module_src += "\n}";
+                var fun = compile(module_src, module.filename, {function: true});
+                fun(module.exports, module.require, module, module.filename);
+                module.loaded = true;
+            } else if(src !== undefined) {
+                throw new TypeError("invalid module load callback return value");
+            }
+        } catch (e) {
+            delete this.cache[resolvedId];
+            throw e;
+        }
+        return module.exports;
+    }
+    
+    function makeRequireFun(parentRequire) {
+        var parentId = parentRequire.moduleId;
+        function require(id) { return handleRequire.call(require, id); }
+        require.cache = parentRequire.cache;
+        require.resolve = parentRequire.resolve;
+        require.load = parentRequire.load;
+        return require;
+    }
+
+    function resolve(requested_id, parent_id) {
+        var path = call_internal_func("eval", ["&rtp"]);
+        var resolved_id = undefined;
+        do_in_path(path, requested_id, 0, 
+             function (fname) { resolved_id = fname; });
+        if(resolved_id === undefined) {
+            var error = new Error('File not found in runtimepath: ' + requested_id);
+            error.name = 'MODULE_NOT_FOUND';
+            throw error;
+        }
+        return resolved_id;
+    }
+
+    function load(resolved_id, exports, module) {
+        return (new TextDecoder()).decode(read_blob(resolved_id));
+    }
+
+    var rootRequire = {
+        moduleId: "",
+        cache: moduleCache, 
+        resolve: resolve, 
+        load: load
+    };
+    globalThis.require = makeRequireFun(rootRequire);
+}
+
+initGlobal(this);
+initModules(this);

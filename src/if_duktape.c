@@ -14,7 +14,6 @@
 #include "vim.h"
 
 #include "duktape.h"
-#include "duk_module_node.h"
 
 #include <string.h>
 
@@ -169,6 +168,25 @@ static duk_ret_t vduk_do_in_path(duk_context *ctx) {
     return 1;
 }
 
+static duk_ret_t vduk_print_error(duk_context *ctx, void *udata) {
+    duk_eval_string(ctx,
+	    "(function (e) {"
+	    "	var lines = e.stack.split('\\n');"
+	    "	for(var i=0; i < lines.length; i++) {"
+	    "	    emsg(lines[i]);"
+	    "	}"
+	    "})");
+    duk_dup(ctx, -2);
+    duk_call(ctx, 1);
+    duk_pop(ctx);
+    return 1;
+}
+
+static void vduk_error_msg(duk_context *ctx) {
+    if(duk_safe_call(ctx, vduk_print_error, NULL, 1, 1) != 0) {
+	semsg("Duktape: Error in error handler: %s", duk_safe_to_string(ctx, -1));
+    }
+}
 static duk_ret_t vduk_eval_file(duk_context *ctx, void *udata);
 
 static duk_ret_t vduk_init_context(duk_context *ctx, void *udata) {
@@ -188,30 +206,18 @@ static duk_ret_t vduk_init_context(duk_context *ctx, void *udata) {
     duk_push_c_lightfunc(ctx, vduk_do_in_path, 4, 4, 0);
     duk_put_prop_string(ctx, -2, "do_in_path");
     duk_pop(ctx);
-    /* Initialize module system */
-    duk_eval_string(ctx,
-	"(function () {"
-	"    function resolve(requested_id, parent_id) {"
-	"	 var path = call_internal_func('eval', ['&rtp']);"
-	"        var resolved_id = undefined;"
-	"        do_in_path(path, requested_id, 0, "
-	"             function (fname) { resolved_id = fname; });"
-	"        if(resolved_id === undefined) {"
-	"            var error = new Error('File not found in runtimepath: ' + requested_id);"
-	"	     error.name = 'MODULE_NOT_FOUND';"
-	"            throw error;"
-	"        }"
-	"        return resolved_id;"
-	"    }"
-	"    function load(resolved_id, exports, module) {"
-	"        return (new TextDecoder()).decode(read_blob(resolved_id));"
-	"    }" 
-	"    return { resolve: resolve, load: load };"
-	"})");
-    duk_call(ctx, 0);
-    duk_module_node_init(ctx);
-    if(duk_peval_string(ctx, "require('if_duktape.js')") != 0) {
-	semsg("Duktape: Failed to load high-level API: %s", duk_safe_to_string(ctx, -1));
+    duk_ret_t r = duk_peval_string(ctx,
+	    "(function () {"
+	    "    var path = call_internal_func('eval', ['&rtp']);"
+	    "    do_in_path(path, 'if_duktape.js', 0, function (fname) {"
+	    "        var src = (new TextDecoder()).decode(read_blob(fname));"
+	    "        var fun = compile(src, fname, {});"
+	    "        fun();"
+	    "    });"
+	    "})()");
+    if(r != 0) {
+	semsg("Duktape: Failed to load high-level API");
+	vduk_error_msg(ctx);
     };
     duk_pop(ctx);
     return 0;
@@ -236,26 +242,6 @@ static duk_context *vduk_get_context() {
 /*
  * ":duktape"
  */
-
-static duk_ret_t vduk_print_error(duk_context *ctx, void *udata) {
-    duk_eval_string(ctx,
-	    "(function (e) {"
-	    "	var lines = e.stack.split('\\n');"
-	    "	for(var i=0; i < lines.length; i++) {"
-	    "	    emsg(lines[i]);"
-	    "	}"
-	    "})");
-    duk_dup(ctx, -2);
-    duk_call(ctx, 1);
-    duk_pop(ctx);
-    return 1;
-}
-
-static void vduk_error_msg(duk_context *ctx) {
-    if(duk_safe_call(ctx, vduk_print_error, NULL, 1, 1) != 0) {
-	semsg("Duktape: Error in error handler: %s", duk_safe_to_string(ctx, -1));
-    }
-}
 
 void
 ex_duktape(exarg_T *eap)
