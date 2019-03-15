@@ -406,14 +406,9 @@ CClink = $(CC)
 # Use --with-duktape-prefix to point to the directory from a duktape
 # source release containing the files duktape.[ch] and duk_config.h (typically
 # .../duktape-x.y.z/src).
-# Use --with-duktape-module-node-prefix to point to the directory containing
-# the files duk_module_node.[ch] (typically
-# .../duktape-x.y.z/extras/module-node). This defaults to
-# <duktape-prefix>/../extras/module-node
 
 CONF_OPT_DUKTAPE = --enable-duktapeinterp
 CONF_OPT_DUKTAPE_PREFIX = --with-duktape-prefix=$(HOME)/Documents/duktape-2.3.0/src
-# CONF_OPT_DUKTAPE_MODULE_NODE_PREFIX = --with-duktape-module-node-prefix=$(HOME)/Documents/duktape-2.3.0/extras/module-node
 
 # LUA
 # Uncomment one of these when you want to include the Lua interface.
@@ -3096,9 +3091,6 @@ objects/if_duktape.o: if_duktape.c
 
 objects/duktape.o: $(DUKTAPE_DIST_SRC)
 	$(CCC_NF) $(DUKTAPE_CFLAGS) $(ALL_CFLAGS) -o $@ $(DUKTAPE_DIST_SRC)
-
-objects/duk_module_node.o: $(DUKTAPE_MODULE_NODE_SRC)
-	$(CCC_NF) $(DUKTAPE_CFLAGS) $(ALL_CFLAGS) -o $@ $(DUKTAPE_MODULE_NODE_SRC)
 
 objects/if_lua.o: if_lua.c
 	$(CCC_NF) $(LUA_CFLAGS) $(ALL_CFLAGS) -o $@ if_lua.c
