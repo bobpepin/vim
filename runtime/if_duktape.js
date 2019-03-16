@@ -159,7 +159,7 @@ function initModules(globalThis) {
         var parentId = this.moduleId;
         var resolvedId = this.resolve(id, parentId);
         if(resolvedId in this.cache) {
-            return this.cache[resolvedId];
+            return this.cache[resolvedId].exports;
         }
         var module = {
             filename: id,
@@ -201,17 +201,27 @@ function initModules(globalThis) {
         return require;
     }
 
-    function resolve(requested_id, parent_id) {
-        var path = call_internal_func("eval", ["&rtp"]);
-        var resolved_id = undefined;
-        do_in_path(path, requested_id, 0, 
-             function (fname) { resolved_id = fname; });
-        if(resolved_id === undefined) {
-            var error = new Error('File not found in runtimepath: ' + requested_id);
+    function resolve(requestedId, parentId) {
+        var resolvedId = undefined;
+        if(requestedId[0] == "/") {
+            resolvedId = requestedId;
+        } else if(requestedId.substring(0, 2) == "./"
+                    || requestedId.substring(0, 3) == "../") {
+            var m = parentId.match(/^(.*)\/[^/]*$/)
+            var parentDir = m ? m[1] : getcwd();
+            resolvedId = simplify(parentDir + "/" + requestedId)
+        } else {
+            var path = call_internal_func("eval", ["&rtp"]);
+            do_in_path(path, requestedId, 0, 
+                function (fname) { resolvedId = simplify(fname); });
+        }
+        if(resolvedId === undefined) {
+            var error = new Error('File not found in runtimepath: '
+                + requestedId);
             error.name = 'MODULE_NOT_FOUND';
             throw error;
         }
-        return resolved_id;
+        return resolvedId;
     }
 
     function load(resolved_id, exports, module) {
@@ -219,12 +229,12 @@ function initModules(globalThis) {
     }
 
     var rootRequire = {
-        moduleId: "",
         cache: moduleCache, 
         resolve: resolve, 
         load: load
     };
     globalThis.require = makeRequireFun(rootRequire);
+    globalThis.require.moduleId = "";
 }
 
 initGlobal(this);
