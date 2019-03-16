@@ -43,6 +43,10 @@ function! Duk_ch_close(channel_id)
 endfunction
 
 function! Duk_ch_callback(channel_id, channel, msg)
-    "call msg(foo)
     call dukcall("channel_callback", [a:channel_id, a:msg, ch_status(a:channel)])
+endfunction
+
+function! Duk_ch_write(channel_id, str)
+    "echo "Duk_ch_write " . a:str
+    call ch_sendraw(s:channels[a:channel_id], a:str)
 endfunction
