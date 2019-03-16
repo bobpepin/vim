@@ -13,7 +13,7 @@ function set_callback(channel, fun) {
 exports.set_callback = set_callback
 
 function callback(channel_id, channel_msg, status) {
-    msg("Channel " + channel_id + " (" + status + ")" + ": " + channel_msg)
+    // msg("Channel " + channel_id + " (" + status + ")" + ": " + channel_msg)
     vim_eval("Duk_ch_disable_cb(" + channel_id + ")")
     var fun = callbacks[channel_id]
     delete callbacks[channel_id]
@@ -28,6 +28,8 @@ function open(address) {
         throw Error("Connection to " + address + " failed.");
     }
     var channel = {id: channel_id}
+    channel.read = function () { return read(this); }
+    channel.write = function (str) { return write(this, str); }
     Duktape.fin(channel, close)
     return channel
 }
@@ -50,4 +52,10 @@ function read(channel) {
     return p;
 }
 
+function write(channel, str) {
+    vim_eval("Duk_ch_write(" + channel.id + ", " + JSON.stringify(str) + ")")
+    return Promise.resolve(str.length)
+}
+
 exports.read = read
+exports.write = write
