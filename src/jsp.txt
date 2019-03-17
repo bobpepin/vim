@@ -1,0 +1,18 @@
+interface TextDocumentIdentifier {
+	/**
+	 * The text document's URI.
+	 */
+	uri: DocumentUri;
+}
+
+interface TextDocumentPositionParams {
+	/**
+	 * The text document.
+	 */
+	textDocument: TextDocumentIdentifier;
+
+	/**
+	 * The position inside the text document.
+	 */
+	position: Position;
+}
