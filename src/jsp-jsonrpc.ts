@@ -2,6 +2,10 @@ class JSPConnection {
     constructor(channel) {
         this.channel = channel
         this.buf = String()
+        this.seq = 0
+        this.inFlight = {}
+        this.notifications = []
+        this.loopPromise = this.runLoop()
     }
 
     async readHeaderLine() {
@@ -50,6 +54,58 @@ class JSPConnection {
         let header = "Content-Length: " + len + "\r\n\r\n"
         await this.channel.write(header)
         await this.channel.write(body)
+    }
+
+    async notify(method, params) {
+        return await this.write({ jsonrpc: "2.0", method, params })
+    }
+
+    // request: register a Promise that is resolved when the matching Response
+    // is received
+    async request(method, params) {
+        let id = this.seq
+        this.seq++
+        let jsonrpc = { jsonrpc: "2.0", method, id, params }
+        await this.write(jsonrpc)
+        let p = new Promise((resolve, reject) => {
+            this.inFlight[id] = {resolve, reject}
+        })
+        return await p;
+    }
+
+    async respond(id, result, error) {
+        let jsonrpc = { jsonrpc: "2.0", id }
+        if(result !== undefined) {
+            jsonrpc.result = result
+        } else {
+            jsonrpc.error = error
+        }
+        return await this.write(jsonrpc)
+    }
+
+    processMessage(jsonrpc) {
+        if("id" in jsonrpc) {
+            let id = jsonrpc.id
+            if(!this.inFlight[id]) {
+                throw Error("No response handler for id " + id + " (jsonrpc=" + JSON.stringify(jsonrpc) + ")")
+            }
+            ({resolve, reject} = this.inFlight[id])
+            delete this.inFlight[id]
+            if("result" in jsonrpc) {
+                resolve(jsonrpc.result)
+            } else {
+                reject(Error(JSON.stringify(jsonrpc.error)))
+            }
+        } else {
+            this.notifications.push(jsonrpc)
+        }
+    }
+
+    async runLoop() {
+        while(true) {
+            let jsonrpc = await this.read()
+            this.processMessage(jsonrpc)
+        }
     }
 }
 

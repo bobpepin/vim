@@ -198,10 +198,14 @@ function initModules(globalThis) {
         require.cache = parentRequire.cache;
         require.resolve = parentRequire.resolve;
         require.load = parentRequire.load;
+        require.forget = parentRequire.forget;
         return require;
     }
 
     function resolve(requestedId, parentId) {
+        if(parentId === undefined) {
+            parentId = this.moduleId
+        }
         var resolvedId = undefined;
         if(requestedId[0] == "/") {
             resolvedId = requestedId;
@@ -228,10 +232,16 @@ function initModules(globalThis) {
         return (new TextDecoder()).decode(read_blob(resolved_id));
     }
 
+    function forget(requestedId) {
+        var resolvedId = this.resolve(requestedId)
+        delete this.cache[resolvedId]
+    }
+
     var rootRequire = {
         cache: moduleCache, 
         resolve: resolve, 
-        load: load
+        load: load,
+        forget: forget
     };
     globalThis.require = makeRequireFun(rootRequire);
     globalThis.require.moduleId = "";

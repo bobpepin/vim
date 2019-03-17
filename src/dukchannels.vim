@@ -43,6 +43,7 @@ function! Duk_ch_close(channel_id)
 endfunction
 
 function! Duk_ch_callback(channel_id, channel, msg)
+    "echo "Duk_ch_callback " . a:channel_id . " " . a:msg
     call dukcall("channel_callback", [a:channel_id, a:msg, ch_status(a:channel)])
 endfunction
 
