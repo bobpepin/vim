@@ -7,7 +7,7 @@
  * See README.txt for an overview of the Vim source code.
  */
 /*
- * Duktape JavaScript extensions by Bob Pepin.
+ * Duktape JavaScript extension by Bob Pepin.
  *
  */
 
@@ -168,6 +168,30 @@ static duk_ret_t vduk_do_in_path(duk_context *ctx) {
     return 1;
 }
 
+static duk_ret_t vduk_screen_puts(duk_context *ctx) {
+    duk_size_t textlen = -1;
+    char_u *text = (char_u*)duk_get_lstring(ctx, 0, &textlen);
+    int row = duk_get_int(ctx, 1);
+    int col = duk_get_int(ctx, 2);
+    int attr = duk_get_int(ctx, 3);
+    screen_puts_len(text, textlen, row, col, attr);
+    return 0;
+}
+
+static duk_ret_t vduk_vim_c_global(duk_context *ctx) {
+    const char *name = duk_get_string(ctx, 0);
+    if(!strcmp(name, "cmdline_row")) {
+	duk_push_int(ctx, cmdline_row);
+    } else if(!strcmp(name, "Rows")) {
+	duk_push_int(ctx, Rows);
+    } else if(!strcmp(name, "Columns")) {
+	duk_push_int(ctx, Columns);
+    } else {
+	return duk_error(ctx, DUK_ERR_TYPE_ERROR, "Not implemented: %s", name);
+    }	
+    return 1;
+}
+
 static duk_ret_t vduk_print_error(duk_context *ctx, void *udata) {
     duk_eval_string(ctx,
 	    "(function (e) {"
@@ -205,6 +229,10 @@ static duk_ret_t vduk_init_context(duk_context *ctx, void *udata) {
     duk_put_prop_string(ctx, -2, "compile");
     duk_push_c_lightfunc(ctx, vduk_do_in_path, 4, 4, 0);
     duk_put_prop_string(ctx, -2, "do_in_path");
+    duk_push_c_lightfunc(ctx, vduk_screen_puts, 4, 4, 0);
+    duk_put_prop_string(ctx, -2, "screen_puts");
+    duk_push_c_lightfunc(ctx, vduk_vim_c_global, 1, 1, 0);
+    duk_put_prop_string(ctx, -2, "vim_c_global");
     duk_pop(ctx);
     duk_ret_t r = duk_peval_string(ctx,
 	    "(function () {"
