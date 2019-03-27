@@ -42,8 +42,7 @@ class JSPConnection {
         if(!headers["Content-Length"]) {
             throw Error("Missing Content-Length header")
         }
-        // no radix, be liberal in what you except etc.
-        let len = parseInt(headers["Content-Length"]) 
+        let len = parseInt(headers["Content-Length"], 10) 
         let body = await this.readBody(len)
         return JSON.parse(body)
     }

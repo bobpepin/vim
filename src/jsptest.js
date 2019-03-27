@@ -5,8 +5,8 @@ function emsg_split(e) {
 	}
 }
 
-function run_promise(p) {
-    p.then(function (e) { msg("Result: " + e) })
+function run_promise(p, silent) {
+    p.then(function (e) { if(!silent) msg("Result: " + e) })
         .catch(function (e) { emsg_split(e) });
     Promise.runQueue()
 }
@@ -16,3 +16,11 @@ require.forget("./jsprun.ts")
 
 var jr = require("./jsprun.ts")
 run_promise(jr.run())
+
+function run_complete() {
+    run_promise(jr.complete(), true);
+}
+
+function run_hide() {
+    run_promise(jr.hide(), true);
+}
