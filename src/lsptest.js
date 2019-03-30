@@ -14,18 +14,18 @@ function run_promise(p, silent) {
     Promise.runQueue()
 }
 
-require.forget("./jsp-jsonrpc.ts")
-require.forget("./jsprun.ts")
+require.forget("./lsp-jsonrpc.ts")
+require.forget("./lsprun.ts")
 
-var jr = require("./jsprun.ts")
-run_promise(jr.run())
+var lr = require("./lsprun.ts")
+run_promise(lr.run())
 
 function run_complete() {
-    run_promise(jr.complete(), true);
+    run_promise(lr.complete(), true);
 }
 
 function run_hide() {
-    run_promise(jr.hide(), true);
+    run_promise(lr.hide(), true);
 }
 
 ex("augroup lsp")

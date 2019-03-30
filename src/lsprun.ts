@@ -1,5 +1,5 @@
 var channels = require("./channels.js")
-var jsp = require("./jsp-jsonrpc.ts")
+var lsp = require("./lsp-jsonrpc.ts")
 
 function curbufTextDoc() {
     let fname = expand("%:p")
@@ -154,7 +154,7 @@ async function hide() {
 var conn;
 async function run() {
     let ch = channels.open("127.0.0.1:8888")
-    conn = new jsp.JSPConnection(ch)
+    conn = new lsp.LSPConnection(ch)
     await init()
 }
 
