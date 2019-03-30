@@ -150,6 +150,27 @@ function initGlobal(globalThis) {
         registerExports(exports);
         return exports;
     }
+
+    var callbacks = {};
+    var callback_seq = -1;
+
+    globalThis.registerCallback = function(fn) {
+        callback_seq++;
+        callbacks[callback_seq] = fn
+        return callback_seq;
+    }
+
+    globalThis.unregisterCallback = function(id) {
+        delete callbacks[id];
+    }
+
+    globalThis.vim_callback = function(id) {
+        var fn = callbacks[id];
+        var args = Array.prototype.slice.call(arguments, 1);
+        return fn.apply(null, args);
+    }
+
+    do_cmdline_cmd("function! Duk_callback(...) \ncall dukcall('vim_callback', a:000)\nendfunction")
 }
 
 function initModules(globalThis) {

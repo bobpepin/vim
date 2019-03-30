@@ -69,6 +69,65 @@ async function query() {
     }
 }
 
+async function complete2() {
+    await sync();
+    let completions = await query();
+    if(completions.items.length == 0) 
+        return;
+    let items = [];
+    for(c of completions.items) {
+        items.push(c.label);
+    }
+    wm = Wildmenu(items);
+    wm.show();
+    addAutocmdOnce('CursorMovedI', wm.hide, 'lsp')
+    imap('<Tab>', wm.selectNext)
+    imap('<S-Tab>', wm.selectPrev)
+    let events = [{imap: "<Tab>"}, {imap: "<S-Tab>"}, {autocmd: "CursorMovedI"}]
+loop:
+    while(let e = await getVimEvent(events)) {
+        switch(e) {
+            case "<Tab>":
+                wm.selectNext();
+                break;
+            case "<S-Tab>":
+                wm.selectPrev();
+                break;
+            case "CursorMovedI":
+                break loop;
+        }
+        let index = wm.selectedIndex()
+        if(index == -1) {
+            restoreText();
+        } else {
+            replaceText(completions[index]);
+        }
+    }
+}
+
+async function complete1() {
+    await sync();
+    let completions = await query();
+    if(completions.items.length == 0) 
+        return;
+    let items = [];
+    for(c of completions.items) {
+        items.push(c.label);
+    }
+    wm = Wildmenu(items);
+    addAutocmdOnce('CursorMovedI', wm.hide, 'lsp')
+    imap('<Tab>', wm.selectNext)
+    imap('<S-Tab>', wm.selectPrev)
+    wm.show();
+    while(let index = await wm.getSelection()) {
+        if(index == -1) {
+            restoreText();
+        } else {
+            replaceText(completions[index]);
+        }
+    }
+}
+
 var wm;
 async function complete() {
     if(wm) {
