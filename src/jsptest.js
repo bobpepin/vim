@@ -1,5 +1,8 @@
+ex("dukfile wildmenu.js")
+
 function emsg_split(e) {
-	var lines = JSON.stringify(e).split("\n"); //e.stack.split("\n");
+	// var lines = JSON.stringify(e).split("\n"); //e.stack.split("\n");
+	var lines = e.stack.split("\n");
 	for(var i=0; i < lines.length; i++) {
 	    emsg(lines[i]);
 	}
@@ -24,3 +27,8 @@ function run_complete() {
 function run_hide() {
     run_promise(jr.hide(), true);
 }
+
+ex("augroup lsp")
+ex("autocmd! CursorMovedI * call dukcall('run_hide', [])")
+ex("augroup end")
+ex("imap <Tab> <C-O>:call dukcall('run_complete', [])<CR>")
