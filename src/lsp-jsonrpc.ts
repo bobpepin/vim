@@ -1,4 +1,4 @@
-class JSPConnection {
+class LSPConnection {
     constructor(channel) {
         this.channel = channel
         this.buf = String()
@@ -108,4 +108,4 @@ class JSPConnection {
     }
 }
 
-exports.JSPConnection = JSPConnection
+exports.LSPConnection = LSPConnection
