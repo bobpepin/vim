@@ -3563,6 +3563,36 @@ curbufIsChanged(void)
 }
 
 #if defined(FEAT_EVAL) || defined(PROTO)
+static void u_tree_entries(u_entry_T *first_ue, list_T *list)
+{
+    u_entry_T	*ue;
+    dict_T	*dict;
+    list_T	*array;
+
+    for(ue = first_ue; ue != NULL; ue = ue->ue_next)
+    {
+	dict = dict_alloc();
+	if (dict == NULL)
+	    return;
+	dict_add_number(dict, "top", ue->ue_top);
+	dict_add_number(dict, "bot", ue->ue_bot);
+	dict_add_number(dict, "lcount", ue->ue_lcount);
+	dict_add_number(dict, "size", ue->ue_size);
+	array = list_alloc();
+	if(array != NULL)
+	{
+	    for(int i=0; i < ue->ue_size; i++)
+	    {
+		undoline_T ul = ue->ue_array[i];
+		// don't copy text properties
+		list_append_string(array, ul.ul_line, -1);
+	    }
+	    dict_add_list(dict, "array", array);
+	}
+	list_append_dict(list, dict);
+    }
+}
+
 /*
  * For undotree(): Append the list of undo blocks at "first_uhp" to "list".
  * Recursive.
@@ -3597,6 +3627,13 @@ u_eval_tree(u_header_T *first_uhp, list_T *list)
 		u_eval_tree(uhp->uh_alt_next.ptr, alt_list);
 		dict_add_list(dict, "alt", alt_list);
 	    }
+	}
+
+	list_T *entries_list = list_alloc();
+	if(entries_list != NULL)
+	{
+	    u_tree_entries(uhp->uh_entry, entries_list);
+	    dict_add_list(dict, "entries", entries_list);
 	}
 
 	list_append_dict(list, dict);
