@@ -408,7 +408,7 @@ CClink = $(CC)
 # .../duktape-x.y.z/src).
 
 CONF_OPT_DUKTAPE = --enable-duktapeinterp
-CONF_OPT_DUKTAPE_PREFIX = --with-duktape-prefix=$(HOME)/Documents/duktape-2.3.0/src
+CONF_OPT_DUKTAPE_PREFIX = --with-duktape-prefix=../duktape-2.3.0/src
 
 # LUA
 # Uncomment one of these when you want to include the Lua interface.
