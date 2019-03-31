@@ -15,7 +15,8 @@ To get started, download a source release of Duktape from http://duktape.org, cl
 
 There are two new ex commands, `:duktape` and `:dukfile` to execute ECMAScript code from the command line and from a file.
 
-Sone examples of the API:
+Some examples of the API (remember to include `../runtime` in `runtimepath` if running vim from the `src/` directory, for example by executing `set rtp+=../runtime` before running the first Duktape command):
+
 Execute an ES5 expression:
 ```
 	:duk var l = bufname(0); append(".", "Buffer name: "+l)
