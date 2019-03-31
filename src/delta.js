@@ -45,6 +45,7 @@ function undotree() {
 
 // Returns a list of steps to go from the undo state after "from" to state "to".
 // If "from" is 0, since the beginning of the undo history. 
+// From needs to be on the current undo branch.
 function undoEntries(tree, from, to) {
     var steps = tree.entries;
     var nsteps = steps.length;
