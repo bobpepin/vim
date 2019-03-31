@@ -164,7 +164,7 @@ static duk_ret_t vduk_do_in_path(duk_context *ctx) {
     char_u *name = (char_u*)duk_get_string(ctx, 1);
     int flags = duk_get_int(ctx, 2);
     int r = do_in_path(path, name, flags, &vduk_do_in_path_cb, (void*)ctx);
-    duk_push_int(ctx, r);
+    duk_push_boolean(ctx, r == OK);
     return 1;
 }
 
@@ -237,16 +237,21 @@ static duk_ret_t vduk_init_context(duk_context *ctx, void *udata) {
     duk_ret_t r = duk_peval_string(ctx,
 	    "(function () {"
 	    "    var path = call_internal_func('eval', ['&rtp']);"
-	    "    do_in_path(path, 'if_duktape.js', 0, function (fname) {"
+	    "    return do_in_path(path, 'if_duktape.js', 0, function (fname) {"
 	    "        var src = (new TextDecoder()).decode(read_blob(fname));"
 	    "        var fun = compile(src, fname, {});"
 	    "        fun();"
 	    "    });"
 	    "})()");
     if(r != 0) {
-	semsg("Duktape: Failed to load high-level API");
+	semsg("Duktape: Error while loading high-level API");
 	vduk_error_msg(ctx);
-    };
+    } else {
+	int did_one = duk_get_boolean(ctx, -1);
+	if(!did_one) {
+	    semsg("Duktape: Warning: if_duktape.js not found in runtimepath, high-level API not loaded");
+	}
+    }
     duk_pop(ctx);
     return 0;
 }
