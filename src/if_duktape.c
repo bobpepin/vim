@@ -11,11 +11,19 @@
  *
  */
 
+#define FEAT_DUKTAPE_THREADS
+
 #include "vim.h"
 
 #include "duktape.h"
 
 #include <string.h>
+
+#ifdef FEAT_DUKTAPE_THREADS
+#include <sys/socket.h>
+#include <sys/select.h>
+#include <pthread.h>
+#endif
 
 duk_ret_t vduk_msg(duk_context *ctx) {
     msg((char*)duk_to_string(ctx, -1));
@@ -212,6 +220,7 @@ static void vduk_error_msg(duk_context *ctx) {
     }
 }
 static duk_ret_t vduk_eval_file(duk_context *ctx, void *udata);
+static duk_ret_t vduk_create_thread(duk_context *parent_ctx);
 
 static duk_ret_t vduk_init_context(duk_context *ctx, void *udata) {
     duk_push_global_object(ctx);
@@ -233,6 +242,8 @@ static duk_ret_t vduk_init_context(duk_context *ctx, void *udata) {
     duk_put_prop_string(ctx, -2, "screen_puts");
     duk_push_c_lightfunc(ctx, vduk_vim_c_global, 1, 1, 0);
     duk_put_prop_string(ctx, -2, "vim_c_global");
+    duk_push_c_lightfunc(ctx, vduk_create_thread, 1, 1, 0);
+    duk_put_prop_string(ctx, -2, "create_thread");
     duk_pop(ctx);
     duk_ret_t r = duk_peval_string(ctx,
 	    "(function () {"
@@ -369,3 +380,173 @@ void evalfunc_dukcall(const char_u *func, typval_T arglist, typval_T *rettv) {
     }
     duk_pop(ctx);
 }
+
+#ifdef FEAT_DUKTAPE_THREADS
+/* Duktape threads */
+
+/* Called with the compiled function for the main loop of the new thread
+ * at top of stack */
+static duk_ret_t vduk_listen(duk_context *ctx) {
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if(sock == -1)
+	return duk_generic_error(ctx, "socket(): %s", strerror(errno));
+    struct sockaddr_in sin;
+    sin.sin_family = AF_INET;
+    sin.sin_addr.s_addr = htonl(duk_get_int(ctx, 0));
+    sin.sin_port = htons(duk_get_int(ctx, 1));
+    if(bind(sock, (struct sockaddr*)&sin, sizeof(sin)) == -1)
+	return duk_generic_error(ctx, "bind(): %s", strerror(errno));
+    if(listen(sock, 0) == -1)
+	return duk_generic_error(ctx, "listen(): %s", strerror(errno));
+    duk_push_int(ctx, sock);
+    return 1;
+}
+
+static duk_ret_t vduk_accept(duk_context *ctx) {
+    int sock = duk_require_uint(ctx, 0);
+    struct sockaddr_in sin;
+    socklen_t sin_len = sizeof(sin);
+    int fd = accept(sock, (struct sockaddr*)&sin, &sin_len);
+    if(fd == -1)
+	return duk_generic_error(ctx, "accept(): %s", strerror(errno));
+    duk_push_int(ctx, fd);
+    return 1;
+}
+
+static duk_ret_t vduk_close(duk_context *ctx) {
+    int sock = duk_require_uint(ctx, 0);
+    if(close(sock) == -1)
+	return duk_generic_error(ctx, "close(): %s", strerror(errno));
+    return 0;
+}
+
+static duk_ret_t vduk_read(duk_context *ctx) {
+    int sock = duk_require_uint(ctx, 0);
+    duk_size_t buf_size;
+    void *buf = duk_require_buffer_data(ctx, 1, &buf_size);
+    int n = read(sock, buf, buf_size);
+    if(n == -1)
+	return duk_generic_error(ctx, "read(): %s", strerror(errno));
+    duk_push_int(ctx, n);
+    return 1;
+}
+
+static duk_ret_t vduk_write(duk_context *ctx) {
+    int sock = duk_require_uint(ctx, 0);
+    duk_size_t buf_size;
+    void *buf = duk_require_buffer_data(ctx, 1, &buf_size);
+    int n = write(sock, buf, buf_size);
+    if(n == -1)
+	return duk_generic_error(ctx, "write(): %s", strerror(errno));
+    duk_push_int(ctx, n);
+    return 1;
+}
+
+static int vduk_get_fdset(duk_context *ctx, duk_idx_t idx, fd_set *fds) {
+    FD_ZERO(fds);
+    int maxfd = -1;
+    duk_size_t N = duk_get_length(ctx, idx);
+    for(duk_uarridx_t i=0; i < N; i++) {
+	duk_get_prop_index(ctx, idx, i);
+	int fd = duk_require_uint(ctx, -1);
+	duk_pop(ctx);
+	FD_SET(fd, fds);
+	if(fd > maxfd)
+	    maxfd = fd;
+    }
+    return maxfd;
+}
+
+static duk_idx_t vduk_push_fdset(duk_context *ctx, fd_set *fds, int maxfd) {
+    duk_idx_t arr_idx = duk_push_array(ctx);
+    int i = 0;
+    for(int fd=0; fd <= maxfd; fd++) {
+	if(FD_ISSET(fd, fds)) {
+	    duk_push_int(ctx, fd);
+	    duk_put_prop_index(ctx, arr_idx, i++);
+	}
+    }
+    return arr_idx;
+}
+
+static duk_ret_t vduk_select(duk_context *ctx) {
+    fd_set readfds, writefds, exceptfds;
+    int readmax = vduk_get_fdset(ctx, 0, &readfds);
+    int writemax = vduk_get_fdset(ctx, 1, &writefds);
+    int exceptmax = vduk_get_fdset(ctx, 2, &exceptfds);
+    int maxfd = readmax;
+    if(writemax > maxfd)
+	maxfd = writemax;
+    if(exceptmax > maxfd)
+	maxfd = exceptmax;
+    int nfds = maxfd + 1;
+    struct timeval tv;
+    struct timeval *tv_ptr = NULL;
+    if(duk_is_object(ctx, 3)) {
+	duk_get_prop_string(ctx, 3, "sec");
+	tv.tv_sec = duk_opt_int(ctx, -1, 0);
+	duk_pop(ctx);
+	duk_get_prop_string(ctx, 3, "usec");
+	tv.tv_usec = duk_opt_int(ctx, -1, 0);
+	duk_pop(ctx);
+	tv_ptr = &tv;
+    }
+    int r = select(nfds, &readfds, &writefds, &exceptfds, tv_ptr);
+    if(r == -1)
+	return duk_generic_error(ctx, "select(): %s", strerror(errno));
+    duk_uarridx_t i = 0;
+    duk_idx_t ret_arr = duk_push_array(ctx);
+    duk_push_int(ctx, r);
+    duk_put_prop_index(ctx, ret_arr, i++);
+    vduk_push_fdset(ctx, &readfds, readmax);
+    duk_put_prop_index(ctx, ret_arr, i++);
+    vduk_push_fdset(ctx, &writefds, writemax);
+    duk_put_prop_index(ctx, ret_arr, i++);
+    vduk_push_fdset(ctx, &exceptfds, exceptmax);
+    duk_put_prop_index(ctx, ret_arr, i++);
+    return 1;
+}
+
+
+static void vduk_init_thread_context(duk_context *ctx) {
+    duk_push_global_object(ctx);
+    duk_push_c_lightfunc(ctx, vduk_emsg, 1, 1, 0);
+    duk_put_prop_string(ctx, -2, "emsg");
+    duk_push_c_lightfunc(ctx, vduk_listen, 2, 2, 1);
+    duk_put_prop_string(ctx, -2, "listen");
+    duk_push_c_lightfunc(ctx, vduk_accept, 1, 1, 1);
+    duk_put_prop_string(ctx, -2, "accept");
+    duk_push_c_lightfunc(ctx, vduk_select, 4, 4, 1);
+    duk_put_prop_string(ctx, -2, "select");
+    duk_push_c_lightfunc(ctx, vduk_read, 2, 2, 1);
+    duk_put_prop_string(ctx, -2, "read");
+    duk_push_c_lightfunc(ctx, vduk_write, 2, 2, 1);
+    duk_put_prop_string(ctx, -2, "write");
+    duk_push_c_lightfunc(ctx, vduk_close, 1, 1, 0);
+    duk_put_prop_string(ctx, -2, "close");
+    duk_pop(ctx);
+}
+
+static void *vduk_thread_main(void *udata) {
+    duk_context *ctx = (duk_context*)udata;
+    if(duk_pcall(ctx, 0) != 0) {
+	vduk_error_msg(ctx);
+    };
+    duk_destroy_heap(ctx);
+    return NULL;
+}
+
+static duk_ret_t vduk_create_thread(duk_context *parent_ctx) {
+    duk_size_t src_len;
+    const char *src = duk_get_lstring(parent_ctx, -1, &src_len);
+    duk_context *ctx = duk_create_heap_default();
+    vduk_init_thread_context(ctx);
+    duk_compile_lstring(ctx, 0, src, src_len);
+    pthread_t thread;
+    int r = pthread_create(&thread, NULL, &vduk_thread_main, (void*)ctx);
+    if(r != 0) {
+	return duk_generic_error(ctx, "pthread_create failed: %d", r);
+    }
+    return 0;
+}
+#endif
