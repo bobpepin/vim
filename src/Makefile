@@ -3087,7 +3087,7 @@ objects/if_xcmdsrv.o: if_xcmdsrv.c
 	$(CCC) -o $@ if_xcmdsrv.c
 
 objects/if_duktape.o: if_duktape.c
-	$(CCC_NF) $(DUKTAPE_CFLAGS) $(ALL_CFLAGS) -o $@ if_duktape.c
+	$(CCC_NF) $(DUKTAPE_CFLAGS) $(ALL_CFLAGS) -pthread -o $@ if_duktape.c
 
 objects/duktape.o: $(DUKTAPE_DIST_SRC)
 	$(CCC_NF) $(DUKTAPE_CFLAGS) $(ALL_CFLAGS) -o $@ $(DUKTAPE_DIST_SRC)
