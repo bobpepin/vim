@@ -221,6 +221,7 @@ static void vduk_error_msg(duk_context *ctx) {
 }
 static duk_ret_t vduk_eval_file(duk_context *ctx, void *udata);
 static duk_ret_t vduk_create_thread(duk_context *parent_ctx);
+static duk_ret_t vduk_init_runtime(duk_context *ctx);
 
 static duk_ret_t vduk_init_context(duk_context *ctx, void *udata) {
     duk_push_global_object(ctx);
@@ -245,6 +246,11 @@ static duk_ret_t vduk_init_context(duk_context *ctx, void *udata) {
     duk_push_c_lightfunc(ctx, vduk_create_thread, 1, 1, 0);
     duk_put_prop_string(ctx, -2, "create_thread");
     duk_pop(ctx);
+
+    return vduk_init_runtime(ctx);
+}
+
+static duk_ret_t vduk_init_runtime(duk_context *ctx) {
     duk_ret_t r = duk_peval_string(ctx,
 	    "(function () {"
 	    "    var path = call_internal_func('eval', ['&rtp']);"
@@ -508,10 +514,14 @@ static duk_ret_t vduk_select(duk_context *ctx) {
 }
 
 
-static void vduk_init_thread_context(duk_context *ctx) {
+static duk_ret_t vduk_init_thread_context(duk_context *ctx, void *udata) {
     duk_push_global_object(ctx);
     duk_push_c_lightfunc(ctx, vduk_emsg, 1, 1, 0);
     duk_put_prop_string(ctx, -2, "emsg");
+    duk_push_c_lightfunc(ctx, vduk_read_blob, 1, 1, 0);
+    duk_put_prop_string(ctx, -2, "read_blob");
+    duk_push_c_lightfunc(ctx, vduk_compile, 3, 3, 0);
+    duk_put_prop_string(ctx, -2, "compile");
     duk_push_c_lightfunc(ctx, vduk_listen, 2, 2, 1);
     duk_put_prop_string(ctx, -2, "listen");
     duk_push_c_lightfunc(ctx, vduk_accept, 1, 1, 1);
@@ -524,7 +534,18 @@ static void vduk_init_thread_context(duk_context *ctx) {
     duk_put_prop_string(ctx, -2, "write");
     duk_push_c_lightfunc(ctx, vduk_close, 1, 1, 0);
     duk_put_prop_string(ctx, -2, "close");
+
+    duk_push_c_lightfunc(ctx, vduk_call_internal_func, 2, 2, 0);
+    duk_put_prop_string(ctx, -2, "call_internal_func");
+    duk_push_c_lightfunc(ctx, vduk_do_in_path, 4, 4, 0);
+    duk_put_prop_string(ctx, -2, "do_in_path");
+    vduk_init_runtime(ctx);
+    vduk_eval_file(ctx, (void *)"vimts.js");
+    duk_del_prop_string(ctx, -1, "do_in_path"); /* Not thread-safe */
+    duk_del_prop_string(ctx, -1, "call_internal_func"); /* Not thread-safe */
+
     duk_pop(ctx);
+    return 0;
 }
 
 static void *vduk_thread_main(void *udata) {
@@ -540,12 +561,19 @@ static duk_ret_t vduk_create_thread(duk_context *parent_ctx) {
     duk_size_t src_len;
     const char *src = duk_get_lstring(parent_ctx, -1, &src_len);
     duk_context *ctx = duk_create_heap_default();
-    vduk_init_thread_context(ctx);
-    duk_compile_lstring(ctx, 0, src, src_len);
+    if (duk_safe_call(ctx, vduk_init_thread_context, NULL, 0, 1) != 0) {
+	/* duk_destroy_heap(ctx); */ /* TODO: Do the sprintf before destroying the heap */
+	return duk_generic_error(parent_ctx, "init thread context: %s", duk_safe_to_string(ctx, -1));
+    }
+    if(duk_pcompile_lstring(ctx, 0, src, src_len) != 0) {
+	/* duk_destroy_heap(ctx); */ /* TODO: Do the sprintf before destroying the heap */
+	return duk_generic_error(parent_ctx, "compile thread program: %s", duk_safe_to_string(ctx, -1));
+    }
     pthread_t thread;
     int r = pthread_create(&thread, NULL, &vduk_thread_main, (void*)ctx);
     if(r != 0) {
-	return duk_generic_error(ctx, "pthread_create failed: %d", r);
+	duk_destroy_heap(ctx);
+	return duk_generic_error(parent_ctx, "pthread_create failed: %d", r);
     }
     return 0;
 }

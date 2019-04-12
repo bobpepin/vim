@@ -1,4 +1,8 @@
-function initGlobal(globalThis) { 
+function initGlobal(globalThis) {
+    globalThis.globalThis = globalThis
+}
+
+function initVim(globalThis) { 
     var vim_builtin_functions = ['abs', 'acos', 'add', 'and', 'append',
 	'append', 'argc', 'argidx', 'argv', 'argv', 'asin', 'atan', 'atan2',
 	'browse', 'browsedir', 'bufexists', 'buflisted', 'bufloaded',
@@ -46,8 +50,6 @@ function initGlobal(globalThis) {
 	'visualmode', 'wildmenumode', 'winbufnr', 'wincol', 'winheight',
 	'winline', 'winnr', 'winrestcmd', 'winrestview', 'winsaveview',
 	'winwidth', 'writefile', 'xor']
-
-    globalThis.globalThis = globalThis
 
     vim_builtin_functions.forEach(function (fn) {
 	globalThis[fn] = function () {
@@ -233,12 +235,12 @@ function initModules(globalThis) {
         } else if(requestedId.substring(0, 2) == "./"
                     || requestedId.substring(0, 3) == "../") {
             var m = parentId.match(/^(.*)\/[^/]*$/)
-            var parentDir = m ? m[1] : getcwd();
-            resolvedId = simplify(parentDir + "/" + requestedId)
+            var parentDir = m ? m[1] : call_internal_func("getcwd", []);
+            resolvedId = call_internal_func("simplify", [parentDir + "/" + requestedId])
         } else {
             var path = call_internal_func("eval", ["&rtp"]);
             do_in_path(path, requestedId, 0, 
-                function (fname) { resolvedId = simplify(fname); });
+                function (fname) { resolvedId = call_internal_func("simplify", [fname]); });
         }
         if(resolvedId === undefined) {
             var error = new Error('File not found in runtimepath: '
@@ -269,4 +271,6 @@ function initModules(globalThis) {
 }
 
 initGlobal(this);
+if(this.do_cmdline_cmd)
+    initVim(this);
 initModules(this);

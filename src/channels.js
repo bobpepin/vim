@@ -53,9 +53,23 @@ function read(channel) {
 }
 
 function write(channel, str) {
+    msg("Duk_ch_write(" + channel.id + ", " + JSON.stringify(str) + ")")
     vim_eval("Duk_ch_write(" + channel.id + ", " + JSON.stringify(str) + ")")
     return Promise.resolve(str.length)
 }
 
 exports.read = read
 exports.write = write
+
+function Channel (address) {
+    var channel = open(address);
+    var encoder = new TextEncoder();
+    var decoder = new TextDecoder();
+    var reader = { read: function read() { return channel.read().then(function (r) { return encoder.encode(r); }); } };
+    var writer = { write: function write(chunk) {
+        return channel.write(decoder.decode(chunk));
+    } };
+    this.readable = { getReader: function() { return reader; } };
+    this.writable = { getWriter: function() { return writer; } };
+}
+exports.Channel = Channel

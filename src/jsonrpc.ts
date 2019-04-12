@@ -1,17 +1,15 @@
-class LSPConnection {
-    constructor(channel) {
-        this.channel = channel
+class ContentLengthReader {
+    constructor(reader) {
+        this.reader = reader;
+        this.encoder = new TextEncoder()
+        this.decoder = new TextDecoder()
         this.buf = String()
-        this.seq = 0
-        this.inFlight = {}
-        this.notifications = []
-        this.loopPromise = this.runLoop()
     }
 
     async readHeaderLine() {
         let idx
         while((idx = this.buf.indexOf("\r\n")) == -1) {
-            this.buf += await this.channel.read()
+            this.buf += this.decoder.decode(await this.reader.read())
         }
         let line;
         [line, this.buf] = [this.buf.slice(0, idx), this.buf.slice(idx+2)]
@@ -30,7 +28,7 @@ class LSPConnection {
     // Content-Length bytes.
     async readBody(len) {
         while(this.buf.length < len) {
-            this.buf += await this.channel.read()
+            this.buf += this.decoder.decode(await this.reader.read())
         }
         let r;
         [r, this.buf] = [this.buf.slice(0, len), this.buf.slice(len)]
@@ -44,15 +42,59 @@ class LSPConnection {
         }
         let len = parseInt(headers["Content-Length"], 10) 
         let body = await this.readBody(len)
-        return JSON.parse(body)
+        let enc = this.encoder.encode(body)
+        return enc;
+    }
+}
+
+class ContentLengthWriter {
+    constructor(writer) {
+        this.writer = writer;
     }
 
-    async write(val) {
-        let body = JSON.stringify(val)
+    async write(body) {
+        let encoder = new TextEncoder();
         let len = body.length;
-        let header = "Content-Length: " + len + "\r\n\r\n"
-        await this.channel.write(header)
-        await this.channel.write(body)
+        let header_str = "Content-Length: " + len + "\r\n\r\n"
+        let header = encoder.encode(header_str);
+        await this.writer.write(header)
+        await this.writer.write(body)
+    }
+}
+
+
+class ContentLengthTransport {
+    constructor(byteStream) {
+        this.readable = { getReader() { return new ContentLengthReader(byteStream.readable.getReader()); } }
+        this.writable = { getWriter() { return new ContentLengthWriter(byteStream.writable.getWriter(); } }
+    }
+}
+
+class JSONRPC {
+    constructor(transport) {
+        this.reader = transport.readable.getReader()
+        this.writer = transport.writable.getWriter()
+        this.seq = 0
+        this.inFlight = {}
+        this.notifications = []
+        this.loopPromise = this.runLoop()
+        this.readable = this.writable = this;
+    }
+
+    getReader() {
+        return this;
+    }
+
+    getWriter() {
+        return this;
+    }
+
+    async write(data) {
+        return await this.writer.write(JSON.stringify(data))
+    }
+
+    async read() {
+        return JSON.parse(await this.reader.read())
     }
 
     async notify(method, params) {
@@ -108,4 +150,5 @@ class LSPConnection {
     }
 }
 
-exports.LSPConnection = LSPConnection
+exports.ContentLengthTransport = ContentLengthTransport
+exports.JSONRPC = JSONRPC

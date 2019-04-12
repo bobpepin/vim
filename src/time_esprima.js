@@ -1,0 +1,7 @@
+var esprima = require('esprima.js')
+var tsblob = read_blob('../runtime/typescript.js')
+var tssource = (new TextDecoder()).decode(tsblob)
+var tic = performance.now()
+var tree = esprima.parse(tssource)
+var toc = performance.now()
+msg(toc - tic)
