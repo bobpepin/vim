@@ -1,7 +1,4 @@
-create_thread("require('./webworker.ts').run()")
-call_internal_func("input", ["Wait for Listening message, then press Enter to continue"])
-for(k in require.cache) delete require.cache[k]
-var wc = require("./workerclient.ts")
-wc.echo("localhost:12345", "FOO")
-  .catch(function(e) { emsg("WC Error: " + e.stack); })
+var Worker = require("./workerclient.ts").Worker;
+var worker = new Worker("./lcworker.js"); 
+worker.onmessage = function(x) { msg("Message: " + JSON.stringify(x)); }
 Promise.runQueue()

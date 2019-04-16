@@ -158,7 +158,20 @@ function initVim(globalThis) {
 
     globalThis.registerCallback = function(fn) {
         callback_seq++;
-        callbacks[callback_seq] = fn
+        callbacks[callback_seq] = function () {
+            var args = Array.prototype.slice.call(arguments, 1);
+            return fn.apply(null, args);
+        }
+        return callback_seq;
+    }
+
+    globalThis.registerCallbackOnce = function(fn) {
+        callback_seq++;
+        callbacks[callback_seq] = function (cbid) {
+            unregisterCallback(cbid);
+            var args = Array.prototype.slice.call(arguments, 1);
+            return fn.apply(null, args);
+        }
         return callback_seq;
     }
 
@@ -168,8 +181,7 @@ function initVim(globalThis) {
 
     globalThis.vim_callback = function(id) {
         var fn = callbacks[id];
-        var args = Array.prototype.slice.call(arguments, 1);
-        return fn.apply(null, args);
+        return fn.apply(null, arguments);
     }
 
     do_cmdline_cmd("function! Duk_callback(...) \ncall dukcall('vim_callback', a:000)\nendfunction")
