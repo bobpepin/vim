@@ -40,6 +40,9 @@
 #
 #       Terminal support: TERMINAL=yes (default is yes)
 #
+#       Duktape interface:
+#         DUKTAPE=[Path to Duktape directory]
+#
 #	Lua interface:
 #	  LUA=[Path to Lua directory]
 #	  DYNAMIC_LUA=yes (to load the Lua DLL dynamically)
@@ -182,7 +185,7 @@ TARGETOS = WINNT
 DIRECTX = $(GUI)
 !endif
 
-# Select one of eight object code directories, depends on GUI, OLE, DEBUG and
+# Select one of nine object code directories, depends on GUI, OLE, DEBUG and
 # interfaces.
 # If you change something else, do "make clean" first!
 !if "$(GUI)" == "yes"
@@ -195,6 +198,9 @@ OBJDIR = $(OBJDIR)X
 !endif
 !if "$(OLE)" == "yes"
 OBJDIR = $(OBJDIR)O
+!endif
+!ifdef DUKTAPE
+OBJDIR = $(OBJDIR)D
 !endif
 !ifdef LUA
 OBJDIR = $(OBJDIR)U
@@ -860,6 +866,14 @@ GETTEXT = yes
 CFLAGS = $(CFLAGS) -DDYNAMIC_GETTEXT
 !endif
 
+# Duktape interface
+!ifdef DUKTAPE
+!message Duktape requested - root dir is "$(DUKTAPE)"
+CFLAGS = $(CFLAGS) -DFEAT_DUKTAPE
+DUKTAPE_OBJ = $(OUTDIR)\if_duktape.obj $(OUTDIR)\duktape.obj
+DUKTAPE_INC = /I "$(DUKTAPE)"
+!endif
+
 # TCL interface
 !ifdef TCL
 !ifndef TCL_VER
@@ -1222,7 +1236,7 @@ all:	$(VIM).exe \
 	GvimExt/gvimext.dll
 
 $(VIM).exe: $(OUTDIR) $(OBJ) $(XDIFF_OBJ) $(GUI_OBJ) $(CUI_OBJ) $(OLE_OBJ) $(OLE_IDL) $(MZSCHEME_OBJ) \
-		$(LUA_OBJ) $(PERL_OBJ) $(PYTHON_OBJ) $(PYTHON3_OBJ) $(RUBY_OBJ) $(TCL_OBJ) \
+		$(DUKTAPE_OBJ) $(LUA_OBJ) $(PERL_OBJ) $(PYTHON_OBJ) $(PYTHON3_OBJ) $(RUBY_OBJ) $(TCL_OBJ) \
 		$(CSCOPE_OBJ) $(TERM_OBJ) $(NETBEANS_OBJ) $(CHANNEL_OBJ) $(XPM_OBJ) \
 		version.c version.h
 	$(CC) $(CFLAGS_OUTDIR) version.c
@@ -1428,6 +1442,12 @@ $(OUTDIR)/gui_w32.obj:	$(OUTDIR) gui_w32.c $(INCL) $(GUI_INCL)
 $(OUTDIR)/gui_dwrite.obj:	$(OUTDIR) gui_dwrite.cpp $(INCL) $(GUI_INCL)
 
 $(OUTDIR)/if_cscope.obj: $(OUTDIR) if_cscope.c  $(INCL) if_cscope.h
+
+$(OUTDIR)/if_duktape.obj: $(OUTDIR) if_duktape.c $(INCL)
+	$(CC) $(CFLAGS_OUTDIR) $(DUKTAPE_INC) if_duktape.c
+
+$(OUTDIR)/duktape.obj: $(OUTDIR) $(DUKTAPE)/duktape.c $(INCL)
+	$(CC) $(CFLAGS_OUTDIR) $(DUKTAPE_INC) $(DUKTAPE)/duktape.c
 
 $(OUTDIR)/if_lua.obj: $(OUTDIR) if_lua.c  $(INCL)
 	$(CC) $(CFLAGS_OUTDIR) $(LUA_INC) if_lua.c
