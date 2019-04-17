@@ -228,6 +228,7 @@ static void	ex_popup(exarg_T *eap);
 #endif
 #ifndef FEAT_DUKTAPE
 # define ex_duktape		ex_script_ni
+# define ex_dukfile		ex_script_ni
 #endif
 #ifndef FEAT_LUA
 # define ex_lua			ex_script_ni

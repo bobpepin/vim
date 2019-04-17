@@ -477,7 +477,7 @@
 #if defined(FEAT_BIG) && defined(FEAT_SYN_HL)
 # define FEAT_CONCEAL
 #endif
-#define FEAT_CONCEAL
+/* #define FEAT_CONCEAL */
 
 /*
  * +textprop		Text properties
