@@ -17,22 +17,24 @@ function runConnection1(sock) {
 async function runConnection(sock) {
     var transport = new ContentLengthTransport(sock);
     var reader = transport.readable.getReader();
-    var read = reader.read.bind(reader);
-    //var writer = sock.writable.getWriter();
     var writer = transport.writable.getWriter();
-    var write = writer.write.bind(writer);
     var decoder = new TextDecoder();
-    var decode = decoder.decode.bind(decoder);
     var encoder = new TextEncoder();
-    var encode = encoder.encode.bind(encoder);
+    globalThis.__postMessage = function (obj) {
+        var buf = encoder.encode(JSON.stringify(obj));
+        writer.write(buf);
+    }
     while(true) {
-        var str = decode(await read());
-        write(encode(str.toLowerCase()));
+        let buf = await reader.read();
+        let obj = JSON.parse(decoder.decode(buf));
+        if(globalThis.onmessage) {
+            globalThis.onmessage({data: obj});
+        }
     }
 }
 
-exports.run = function run() {
-    tcpserver.runServer(12345, async function (sock) { 
+exports.run = function run(port) {
+    tcpserver.runServer(port, async function (sock) { 
         try {
             emsg("Accepted connection.");
             await runConnection(sock);
