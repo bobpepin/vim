@@ -11,19 +11,28 @@
  *
  */
 
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+
 #define FEAT_DUKTAPE_THREADS
-
-#include "vim.h"
-
-#include "duktape.h"
-
-#include <string.h>
-
-#ifdef FEAT_DUKTAPE_THREADS
+#include <unistd.h>
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <pthread.h>
+
+#elif defined(_WIN32)
+
+#define FEAT_DUKTAPE_THREADS
+#include <winsock2.h>
+#include <windows.h>
+#include <process.h>
+// Need to link with Ws2_32.lib
+#pragma comment (lib, "Ws2_32.lib")
+
 #endif
+
+#include "vim.h"
+#include "duktape.h"
+#include <string.h>
 
 duk_ret_t vduk_msg(duk_context *ctx) {
     msg((char*)duk_to_string(ctx, -1));
@@ -220,7 +229,9 @@ static void vduk_error_msg(duk_context *ctx) {
     }
 }
 static duk_ret_t vduk_eval_file(duk_context *ctx, void *udata);
+#ifdef FEAT_DUKTAPE_THREADS
 static duk_ret_t vduk_create_thread(duk_context *parent_ctx);
+#endif
 static duk_ret_t vduk_init_runtime(duk_context *ctx);
 
 static duk_ret_t vduk_init_context(duk_context *ctx, void *udata) {
@@ -243,8 +254,10 @@ static duk_ret_t vduk_init_context(duk_context *ctx, void *udata) {
     duk_put_prop_string(ctx, -2, "screen_puts");
     duk_push_c_lightfunc(ctx, vduk_vim_c_global, 1, 1, 0);
     duk_put_prop_string(ctx, -2, "vim_c_global");
+#ifdef FEAT_DUKTAPE_THREADS
     duk_push_c_lightfunc(ctx, vduk_create_thread, 1, 1, 0);
     duk_put_prop_string(ctx, -2, "create_thread");
+#endif
     duk_pop(ctx);
 
     return vduk_init_runtime(ctx);
@@ -390,47 +403,62 @@ void evalfunc_dukcall(const char_u *func, typval_T arglist, typval_T *rettv) {
 #ifdef FEAT_DUKTAPE_THREADS
 /* Duktape threads */
 
-/* Called with the compiled function for the main loop of the new thread
- * at top of stack */
+#if defined(_POSIX_VERSION)
+#define INVALID_SOCKET -1
+static duk_ret_t vduk_socket_error(duk_context *ctx, const unsigned char* msg) {
+    return duk_generic_error(ctx, "%s: %s", msg, strerror(errno));
+}
+
+#elif defined(_WIN32)
+static duk_ret_t vduk_socket_error(duk_context *ctx, const unsigned char* msg) {
+    return duk_generic_error(ctx, "%s: %d", msg, WSAGetLastError());
+}
+#endif
+
 static duk_ret_t vduk_listen(duk_context *ctx) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if(sock == -1)
-	return duk_generic_error(ctx, "socket(): %s", strerror(errno));
+    if(sock == INVALID_SOCKET)
+	return vduk_socket_error(ctx, "socket()");
     struct sockaddr_in sin;
     sin.sin_family = AF_INET;
     sin.sin_addr.s_addr = htonl(duk_get_int(ctx, 0));
     sin.sin_port = htons(duk_get_int(ctx, 1));
     if(bind(sock, (struct sockaddr*)&sin, sizeof(sin)) == -1)
-	return duk_generic_error(ctx, "bind(): %s", strerror(errno));
+	return vduk_socket_error(ctx, "bind()");
     if(listen(sock, 0) == -1)
-	return duk_generic_error(ctx, "listen(): %s", strerror(errno));
+	return vduk_socket_error(ctx, "listen()");
     duk_push_int(ctx, sock);
     return 1;
 }
 
 static duk_ret_t vduk_accept(duk_context *ctx) {
-    int sock = duk_require_uint(ctx, 0);
+    unsigned int sock = duk_require_uint(ctx, 0);
     struct sockaddr_in sin;
-    socklen_t sin_len = sizeof(sin);
+    size_t sin_len = sizeof(sin);
     int fd = accept(sock, (struct sockaddr*)&sin, &sin_len);
-    if(fd == -1)
-	return duk_generic_error(ctx, "accept(): %s", strerror(errno));
+    if(fd == INVALID_SOCKET)
+	return vduk_socket_error(ctx, "accept()");
     duk_push_int(ctx, fd);
     return 1;
 }
 
 static duk_ret_t vduk_close(duk_context *ctx) {
-    int sock = duk_require_uint(ctx, 0);
-    if(close(sock) == -1)
+    unsigned int sock = duk_require_uint(ctx, 0);
+#ifdef _WIN32
+    int r = closesocket(sock);
+#else
+    int r = close(sock);
+#endif
+    if(r == -1)
 	return duk_generic_error(ctx, "close(): %s", strerror(errno));
     return 0;
 }
 
 static duk_ret_t vduk_read(duk_context *ctx) {
-    int sock = duk_require_uint(ctx, 0);
+    unsigned int sock = duk_require_uint(ctx, 0);
     duk_size_t buf_size;
     void *buf = duk_require_buffer_data(ctx, 1, &buf_size);
-    int n = read(sock, buf, buf_size);
+    int n = recv(sock, buf, buf_size, 0);
     if(n == -1)
 	return duk_generic_error(ctx, "read(): %s", strerror(errno));
     duk_push_int(ctx, n);
@@ -438,10 +466,10 @@ static duk_ret_t vduk_read(duk_context *ctx) {
 }
 
 static duk_ret_t vduk_write(duk_context *ctx) {
-    int sock = duk_require_uint(ctx, 0);
+    unsigned int sock = duk_require_uint(ctx, 0);
     duk_size_t buf_size;
     void *buf = duk_require_buffer_data(ctx, 1, &buf_size);
-    int n = write(sock, buf, buf_size);
+    int n = send(sock, buf, buf_size, 0);
     if(n == -1)
 	return duk_generic_error(ctx, "write(): %s", strerror(errno));
     duk_push_int(ctx, n);
@@ -548,7 +576,11 @@ static duk_ret_t vduk_init_thread_context(duk_context *ctx, void *udata) {
     return 0;
 }
 
+#ifdef _WIN32
+unsigned __stdcall vduk_thread_main(void *udata) {
+#else
 static void *vduk_thread_main(void *udata) {
+#endif
     duk_context *ctx = (duk_context*)udata;
     if(duk_pcall(ctx, 0) != 0) {
 	vduk_error_msg(ctx);
@@ -569,12 +601,21 @@ static duk_ret_t vduk_create_thread(duk_context *parent_ctx) {
 	/* duk_destroy_heap(ctx); */ /* TODO: Do the sprintf before destroying the heap */
 	return duk_generic_error(parent_ctx, "compile thread program: %s", duk_safe_to_string(ctx, -1));
     }
+#ifdef _POSIX_VERSION
     pthread_t thread;
     int r = pthread_create(&thread, NULL, &vduk_thread_main, (void*)ctx);
     if(r != 0) {
 	duk_destroy_heap(ctx);
 	return duk_generic_error(parent_ctx, "pthread_create failed: %d", r);
     }
+#elif defined(_WIN32)
+    HANDLE thread;
+    thread = (HANDLE)_beginthreadex(NULL, 0, &vduk_thread_main, (void*)ctx, 0, NULL);
+    if(thread == 0) {
+	duk_destroy_heap(ctx);
+	return duk_generic_error(parent_ctx, "_beginthreadex failed: %s", strerror(errno));
+    }
+#endif
     return 0;
 }
 #endif

@@ -66,7 +66,7 @@ class ContentLengthWriter {
 class ContentLengthTransport {
     constructor(byteStream) {
         this.readable = { getReader() { return new ContentLengthReader(byteStream.readable.getReader()); } }
-        this.writable = { getWriter() { return new ContentLengthWriter(byteStream.writable.getWriter(); } }
+        this.writable = { getWriter() { return new ContentLengthWriter(byteStream.writable.getWriter()); } }
     }
 }
 
