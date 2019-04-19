@@ -1,3 +1,3 @@
 set nocp rtp+=../runtime
 so dukchannels.vim
-dukfile vimts.js
+dukfile vimbabel.js

@@ -1245,7 +1245,7 @@ $(VIM).exe: $(OUTDIR) $(OBJ) $(XDIFF_OBJ) $(GUI_OBJ) $(CUI_OBJ) $(OLE_OBJ) $(OLE
 		version.c version.h
 	$(CC) $(CFLAGS_OUTDIR) version.c
 	$(link) $(LINKARGS1) -out:$(VIM).exe $(OBJ) $(XDIFF_OBJ) $(GUI_OBJ) $(CUI_OBJ) $(OLE_OBJ) \
-		$(LUA_OBJ) $(MZSCHEME_OBJ) $(PERL_OBJ) $(PYTHON_OBJ) $(PYTHON3_OBJ) $(RUBY_OBJ) \
+		$(DUKTAPE_OBJ) $(LUA_OBJ) $(MZSCHEME_OBJ) $(PERL_OBJ) $(PYTHON_OBJ) $(PYTHON3_OBJ) $(RUBY_OBJ) \
 		$(TCL_OBJ) $(CSCOPE_OBJ) $(TERM_OBJ) $(NETBEANS_OBJ) $(CHANNEL_OBJ) \
 		$(XPM_OBJ) $(OUTDIR)\version.obj $(LINKARGS2)
 	if exist $(VIM).exe.manifest mt.exe -nologo -manifest $(VIM).exe.manifest -updateresource:$(VIM).exe;1

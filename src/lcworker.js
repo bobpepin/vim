@@ -1,3 +1,3 @@
 onmessage = function (e) {
-    postMessage(e.data.toLowerCase());
+    postMessage("Lower: " + e.data.toLowerCase());
 }
