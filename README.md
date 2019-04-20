@@ -5,8 +5,8 @@ Quickstart (Mac or Linux):
 git clone https://github.com/bobpepin/vim.git && \
  cd vim && \
  curl https://duktape.org/duktape-2.3.0.tar.xz | tar xfvz - duktape-2.3.0/src && \
- curl -o runtime/babel.es5 https://unpkg.com/@babel/standalone/babel.js && \
- curl -o runtime/polyfill.es5 https://unpkg.com/@babel/polyfill/dist/polyfill.js && \
+ curl -Lo runtime/babel.es5 https://unpkg.com/@babel/standalone/babel.js && \
+ curl -Lo runtime/polyfill.es5 https://unpkg.com/@babel/polyfill/dist/polyfill.js && \
  cd src && make
 ```
 
@@ -36,11 +36,11 @@ Load an ECMAScript module `foo.js` from runtimepath (Node.js/CommonJS-style):
 ```
         :duk var foo = require("foo.js")
 ```
-Enable Typescript support (needs `typescript.js` in runtimepath):
+Enable Babel support (needs `babel.es5` in runtimepath):
 ```
-        :dukfile vimts.js
+        :dukfile vimbabel.js
 ```
-Load a Typescript module:
+Load an ES2017 module:
 ```
         :duk var lsp = require("./lsp-jsonrpc.ts")
 ```
