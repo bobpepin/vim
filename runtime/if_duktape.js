@@ -187,8 +187,29 @@ function initVim(globalThis) {
     do_cmdline_cmd("function! Duk_callback(...) \ncall dukcall('vim_callback', a:000)\nendfunction")
 }
 
+// filereadable(fname), mkdir(dirname, "p")
 function initModules(globalThis) {
     var moduleCache = {}
+
+    var bytecodeDir = call_internal_func("expand", ["~/.cache/vim"]);
+    function loadBytecode(resolvedId) {
+        call_internal_func("mkdir", [bytecodeDir, "p"]);
+        var fname = bytecodeDir + "/" + encodeURIComponent(resolvedId)
+        if(call_internal_func("filereadable", [fname])) {
+            bytecode = read_blob(fname);
+            msg("load bytecode " + fname);
+            return duk_load_function(bytecode);
+        }
+        return null;
+    }
+
+    function saveBytecode(resolvedId, fun) {
+        call_internal_func("mkdir", [bytecodeDir, "p"]);
+        var fname = bytecodeDir + "/" + encodeURIComponent(resolvedId)
+        msg("save bytecode " + fname + " " + resolvedId);
+        bytecode = duk_dump_function(fun);
+        write_blob(fname, bytecode);
+    }
 
     function handleRequire(id) {
         var parentId = this.moduleId;
@@ -206,20 +227,24 @@ function initModules(globalThis) {
         module.require.moduleId = id;
         this.cache[resolvedId] = module;
         try {
-            var src = this.load(resolvedId, module.exports, module);
-            if(typeof src === "string") {
-                var module_src = "function(exports,require,module,__filename,__dirname){";
-                if(src[0] == '#' && src[1] == '!') {
-                    module_src += "//";
+            var fun = loadBytecode(resolvedId);
+            if(!fun) {
+                var src = this.load(resolvedId, module.exports, module);
+                if(typeof src === "string") {
+                    var module_src = "function(exports,require,module,__filename,__dirname){";
+                    if(src[0] == '#' && src[1] == '!') {
+                        module_src += "//";
+                    }
+                    module_src += src;
+                    module_src += "\n}";
+                    var fun = compile(module_src, module.filename, {function: true});
+                    saveBytecode(resolvedId, fun);
+                } else if(src !== undefined) {
+                    throw new TypeError("invalid module load callback return value");
                 }
-                module_src += src;
-                module_src += "\n}";
-                var fun = compile(module_src, module.filename, {function: true});
-                fun(module.exports, module.require, module, module.filename);
-                module.loaded = true;
-            } else if(src !== undefined) {
-                throw new TypeError("invalid module load callback return value");
             }
+            fun(module.exports, module.require, module, module.filename);
+            module.loaded = true;
         } catch (e) {
             delete this.cache[resolvedId];
             throw e;

@@ -20,12 +20,14 @@
 #include <pthread.h>
 
 #elif defined(_WIN32)
+/* Order of includes matters. winsock2.h needs to come before windows.h which
+ * is also included by vim.h */
 
 #define FEAT_DUKTAPE_THREADS
 #include <winsock2.h>
 #include <windows.h>
 #include <process.h>
-// Need to link with Ws2_32.lib
+/* Need to link with Ws2_32.lib */
 #pragma comment (lib, "Ws2_32.lib")
 
 #endif
@@ -142,6 +144,24 @@ static duk_ret_t vduk_read_blob(duk_context *ctx) {
     return 1;
 }
 
+static duk_ret_t vduk_write_blob(duk_context *ctx) {
+    const char *fname = (const char*)duk_require_string(ctx, 0);
+    duk_size_t size;
+    void *buf = duk_require_buffer_data(ctx, 1, &size);
+    FILE *fp = mch_fopen(fname, WRITEBIN);
+    if(!fp) {
+#ifdef HAVE_STRERROR
+	return duk_generic_error(ctx, "%s: fopen: %s", fname, strerror(errno));
+#else
+	return duk_generic_error(ctx, "%s: fopen failed", fname);
+#endif
+    }
+    fwrite(buf, 1, size, fp);
+    fclose(fp);
+    return 0;
+}
+
+
 static duk_ret_t vduk_compile(duk_context *ctx) {
     duk_uint_t flags = 0;
     duk_get_prop_string(ctx, 2, "eval");
@@ -166,6 +186,16 @@ static duk_ret_t vduk_compile(duk_context *ctx) {
     duk_pop(ctx);
     duk_pop(ctx);
     duk_compile(ctx, flags);
+    return 1;
+}
+
+static duk_ret_t vduk_dump_function(duk_context *ctx) {
+    duk_dump_function(ctx);
+    return 1;
+}
+
+static duk_ret_t vduk_load_function(duk_context *ctx) {
+    duk_load_function(ctx);
     return 1;
 }
 
@@ -246,8 +276,14 @@ static duk_ret_t vduk_init_context(duk_context *ctx, void *udata) {
     duk_put_prop_string(ctx, -2, "call_internal_func");
     duk_push_c_lightfunc(ctx, vduk_read_blob, 1, 1, 0);
     duk_put_prop_string(ctx, -2, "read_blob");
+    duk_push_c_lightfunc(ctx, vduk_write_blob, 2, 2, 0);
+    duk_put_prop_string(ctx, -2, "write_blob");
     duk_push_c_lightfunc(ctx, vduk_compile, 3, 3, 0);
     duk_put_prop_string(ctx, -2, "compile");
+    duk_push_c_lightfunc(ctx, vduk_dump_function, 1, 1, 0);
+    duk_put_prop_string(ctx, -2, "duk_dump_function");
+    duk_push_c_lightfunc(ctx, vduk_load_function, 1, 1, 0);
+    duk_put_prop_string(ctx, -2, "duk_load_function");
     duk_push_c_lightfunc(ctx, vduk_do_in_path, 4, 4, 0);
     duk_put_prop_string(ctx, -2, "do_in_path");
     duk_push_c_lightfunc(ctx, vduk_screen_puts, 4, 4, 0);
@@ -546,10 +582,18 @@ static duk_ret_t vduk_init_thread_context(duk_context *ctx, void *udata) {
     duk_push_global_object(ctx);
     duk_push_c_lightfunc(ctx, vduk_emsg, 1, 1, 0);
     duk_put_prop_string(ctx, -2, "emsg");
+    duk_push_c_lightfunc(ctx, vduk_emsg, 1, 1, 0);
+    duk_put_prop_string(ctx, -2, "msg");
     duk_push_c_lightfunc(ctx, vduk_read_blob, 1, 1, 0);
     duk_put_prop_string(ctx, -2, "read_blob");
+    duk_push_c_lightfunc(ctx, vduk_write_blob, 2, 2, 0);
+    duk_put_prop_string(ctx, -2, "write_blob");
     duk_push_c_lightfunc(ctx, vduk_compile, 3, 3, 0);
     duk_put_prop_string(ctx, -2, "compile");
+    duk_push_c_lightfunc(ctx, vduk_dump_function, 1, 1, 0);
+    duk_put_prop_string(ctx, -2, "duk_dump_function");
+    duk_push_c_lightfunc(ctx, vduk_load_function, 1, 1, 0);
+    duk_put_prop_string(ctx, -2, "duk_load_function");
     duk_push_c_lightfunc(ctx, vduk_listen, 2, 2, 1);
     duk_put_prop_string(ctx, -2, "listen");
     duk_push_c_lightfunc(ctx, vduk_accept, 1, 1, 1);
@@ -568,7 +612,7 @@ static duk_ret_t vduk_init_thread_context(duk_context *ctx, void *udata) {
     duk_push_c_lightfunc(ctx, vduk_do_in_path, 4, 4, 0);
     duk_put_prop_string(ctx, -2, "do_in_path");
     vduk_init_runtime(ctx);
-    vduk_eval_file(ctx, (void *)"vimts.js");
+    vduk_eval_file(ctx, (void *)"vimbabel.js");
     duk_del_prop_string(ctx, -1, "do_in_path"); /* Not thread-safe */
     duk_del_prop_string(ctx, -1, "call_internal_func"); /* Not thread-safe */
 
